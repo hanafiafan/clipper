@@ -272,6 +272,16 @@ body::after{content:"HC // 2026";position:fixed;right:10px;bottom:10px;writing-m
 input,select{background:rgba(255,255,255,.32);border-color:var(--line2);color:#171916}input::placeholder{color:#72796f}.opt{background:transparent;border-color:var(--line2)}.opt.sel{background:var(--accent);color:#171916}.opt.sel .lbl{color:#171916}.ar{background:#171916}button{border-color:#171916;background:transparent;color:#171916}button.primary{background:#171916;color:#e5ebe1;border-color:#171916}button.primary:hover{background:var(--accent);color:#171916}.btn-ai{background:var(--accent);color:#171916;border-color:#171916}
 .placeholder{background:#171916;color:#91998f;border-color:#171916}.hcard{background:#eef2ec;border-color:var(--line2)}.hcard:hover{transform:translateY(-3px);box-shadow:7px 7px 0 var(--accent)}.infopanel{background:#171916;color:#e5ebe1}.infopanel .k,.infopanel .inforow span{color:#8f978d}.infopanel .inforow b{color:#e5ebe1}.keyrow{border-bottom:1px solid var(--line);padding-bottom:10px}
 @media(max-width:820px){.app{grid-template-columns:1fr}.side{padding:8px}.mainpad{padding:22px 16px 60px}.topbar{min-height:80px}.topbar h1{font-size:52px}.navitem::after{display:none}}@media(max-width:620px){.heroband{grid-template-columns:1fr}.heroL{padding:32px 24px}.herostat{padding:24px}.bigtitle{font-size:48px}}
+
+/* ===== refinement pass: depth, rhythm, and operational feedback ===== */
+::selection{background:var(--accent);color:#171916}*{scrollbar-width:thin;scrollbar-color:var(--accent) #171916}.side::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 48%,rgba(255,255,255,.018) 49%,transparent 50%);background-size:18px 18px;pointer-events:none}.brand,.navitem,.sidetech,.sidefoot{position:relative;z-index:1}
+.strip>div:first-child{display:flex;align-items:center}.stripmeta{display:inline-flex;align-items:center;gap:14px;margin-left:24px;padding-left:24px;border-left:1px solid #444b43}.stripmeta i{font-style:normal;color:#717970}.stripmeta b{color:#d8e5d4;font-weight:400}.signal{display:inline-flex;gap:3px;align-items:flex-end;height:10px}.signal i{display:block;width:2px;background:var(--accent)}.signal i:nth-child(1){height:4px}.signal i:nth-child(2){height:7px}.signal i:nth-child(3){height:10px}
+.topbar::after{content:"LAT -6.2088 / LONG 106.8456";position:absolute;right:0;bottom:7px;font:8px var(--mono);letter-spacing:.11em;color:var(--muted)}.bigtitle span{display:inline-block}.bigtitle .shift{color:var(--accent);position:relative;text-shadow:3px 0 0 rgba(24,92,255,.82),-3px 0 0 rgba(255,26,100,.62)}.bigtitle .shift::after{content:"";position:absolute;left:1%;right:-1%;bottom:-9px;height:4px;background:linear-gradient(90deg,var(--accent) 0 55%,#f2efe6 55% 78%,#235eff 78%)}
+.heroband{box-shadow:9px 9px 0 rgba(23,25,22,.16)}.heroL{isolation:isolate}.heroL>*{position:relative;z-index:2}.herostat{background-image:linear-gradient(rgba(23,25,22,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(23,25,22,.055) 1px,transparent 1px);background-size:100% 36px,36px 100%}.herostat .emblem{transition:transform .5s ease}.heroband:hover .herostat .emblem{transform:rotate(60deg)}
+.card{transition:border-color .16s ease,transform .16s ease}.card:focus-within{border-color:#171916}.field>.flabel::before,label.fld::before{content:"+ ";color:var(--accent)}input,select{min-height:43px}input:focus,select:focus{box-shadow:inset 4px 0 0 var(--accent);background:#f3f5f0}.opt{position:relative;overflow:hidden}.opt::after{content:"";position:absolute;left:0;right:100%;bottom:0;height:3px;background:#171916;transition:right .18s}.opt:hover::after,.opt.sel::after{right:0}.opt.sel{box-shadow:inset 0 0 0 1px #171916}
+button{position:relative;overflow:hidden}button::after{content:"↗";margin-left:auto;font-size:10px;opacity:.55}button:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 #171916}button:active{transform:none;box-shadow:none}.navitem::after{box-shadow:none}.primary.full{min-height:52px}.launch .primary.full:hover{background:#f0f3ed;color:#171916}
+.card h2::before{content:"";width:4px;height:4px;background:var(--accent);position:absolute;left:-23px}.histGrid{gap:18px}.hcard .meta{border-top:4px solid var(--accent)}.progwrap{height:10px;border-color:#171916}.progwrap>div{background:repeating-linear-gradient(135deg,#171916 0 7px,var(--accent) 7px 14px)}
+@media(max-width:1050px){.stripmeta{display:none}.heroband{grid-template-columns:minmax(0,1fr) 260px}.bigtitle{font-size:clamp(44px,6vw,68px)}}@media(max-width:820px){.topbar::after{display:none}.heroband{box-shadow:5px 5px 0 rgba(23,25,22,.16)}button::after{display:none}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -309,7 +319,7 @@ input,select{background:rgba(255,255,255,.32);border-color:var(--line2);color:#1
   </nav>
 
   <main class=main>
-    <div class=strip><div><span class=dot></span>HELLENS CLIPPER · AI VIDEO CLIPPER</div><div id=stripRight>LOCAL BUILD · v1.0</div></div>
+    <div class=strip><div><span class=dot></span>HELLENS CLIPPER · AI VIDEO CLIPPER <span class=stripmeta><span class=signal><i></i><i></i><i></i></span><i>ENGINE</i><b>READY</b><i>QUEUE</i><b>00</b></span></div><div id=stripRight>LOCAL BUILD · v1.0</div></div>
     <div class=mainpad>
     <div class=topbar><div><div class=viewkick id=viewKick>PIPELINE // AUTO-CLIP</div><h1 id=viewTitle>Auto</h1></div><div class=lead id=viewLead>1 link YouTube jadi beberapa short siap posting</div><div class=wmk id=wmk>01</div></div>
 
@@ -319,7 +329,7 @@ input,select{background:rgba(255,255,255,.32);border-color:var(--line2);color:#1
       <div class=heroband>
         <div class=heroL>
           <div class=kick>PIPELINE // AUTO-CLIP // PIPE.01</div>
-          <div class=bigtitle>Satu link.<br>Banyak short.</div>
+          <div class=bigtitle><span>Satu link.</span><br><span class=shift>Banyak short.</span></div>
           <div class=herosub>Tempel satu URL YouTube — AI mencari momen viral, memotong, memberi caption bergaya &amp; grade. Keluar sebagai beberapa short siap posting, tanpa edit lagi.</div>
           <div class=wavewrap><div class=wavelbl>SIGNAL · PETA VIRALITAS</div><div class=wave id=wave></div></div>
           <div class=chips><span>FFMPEG</span><span>WHISPER</span><span>YT-DLP</span><span>AI ×6</span><span>LOCAL</span></div>
