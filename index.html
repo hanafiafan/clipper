@@ -134,6 +134,9 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .cap-karaoke{color:#fff;font-weight:800;text-shadow:0 0 2px #000,1.4px 1.4px 0 #000;font-family:"Komika Axis",system-ui}
 .cap-beasty{color:var(--accent);font-weight:800;text-transform:uppercase;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
 .cap-simple{color:#fff;background:rgba(0,0,0,.55);font-weight:600;font-size:14px}
+.cap-impact{color:#fff;font-family:var(--disp);font-size:20px;text-transform:uppercase;text-shadow:2px 2px 0 #000,-2px -2px 0 #000;background:var(--accent)}
+.cap-clean{color:#fff;font-family:var(--body);font-weight:700;font-size:14px;letter-spacing:-.03em;border-bottom:3px solid var(--accent)}
+.cap-boxed{color:#171916;background:#f2efe6;font-family:var(--mono);font-size:12px;font-weight:700;box-shadow:5px 5px 0 var(--accent)}
 
 /* results / history */
 .histGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:14px}
@@ -213,6 +216,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .autogrid{display:grid;grid-template-columns:1fr 290px;gap:16px;align-items:start;margin-bottom:16px}
 .cfgGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;margin-top:4px}
 .cfgGrid .field{margin-top:0}
+.cfgGrid .wide{grid-column:1/-1}.captionOpts{display:grid;grid-template-columns:repeat(6,minmax(92px,1fr));gap:8px}.captionOpts .opt{min-width:0;padding:10px 7px}.captionOpts .capprev{width:100%;min-width:0}.microGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line2)}.colorOpts{display:flex;gap:8px}.colorDot{width:32px;height:32px;border:2px solid #171916;display:block}.opt.sel .colorDot{box-shadow:0 0 0 3px var(--surface),0 0 0 5px #171916}.microGrid .opt{padding:9px 12px;min-width:58px}.hookPrev{width:68px;height:26px;display:grid;place-items:center;font:700 9px var(--mono);text-transform:uppercase}.hook-punch{background:var(--accent);color:#171916}.hook-clean{background:#f0f3ed;color:#171916;border-radius:14px}.hook-dark{background:#171916;color:#fff}
 .launch{position:sticky;top:18px;background:var(--surface);border-color:var(--line2)}
 .launchhead{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .launchhead span:last-child{color:var(--accent)}
@@ -222,7 +226,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .speclist .sp b{color:var(--text);font-weight:600}
 .speclist .sp b.on{color:var(--accent)}
 @media(max-width:980px){.autogrid{grid-template-columns:1fr}.heroband{grid-template-columns:1fr}.launch{position:static}}
-@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}}
+@media(max-width:760px){.captionOpts{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:1fr}}@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}.cfgGrid .wide{grid-column:auto}}
 
 
 /* waveform signal map */
@@ -416,9 +420,12 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
             </div>
             <div class=field><div class=flabel>03 · Resolusi</div>
               <div class=opts id=aRes>
+                <div class=opt data-val=360p><div class=lbl>360p</div><div class=sub2>Draft</div></div>
                 <div class=opt data-val=480p><div class=lbl>480p</div></div>
                 <div class=opt data-val=720p><div class=lbl>720p</div></div>
                 <div class="opt sel" data-val=1080p><div class=lbl>1080p</div></div>
+                <div class=opt data-val=1440p><div class=lbl>1440p</div><div class=sub2>2K</div></div>
+                <div class=opt data-val=4k><div class=lbl>4K</div><div class=sub2>Ultra</div></div>
               </div>
             </div>
             <div class=field><div class=flabel>04 · Jumlah klip</div>
@@ -429,17 +436,34 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
                 <div class="opt sel" data-val=6><div class=lbl>6</div></div>
               </div>
             </div>
-            <div class=field><div class=flabel>05 · Gaya caption</div>
-              <div class=opts id=aPreset>
+            <div class="field wide"><div class=flabel>05 · Gaya caption</div>
+              <div class="opts captionOpts" id=aPreset>
                 <div class="opt sel" data-val=karaoke><div class="capprev cap-karaoke">Teks</div><div class=lbl>Karaoke</div></div>
                 <div class=opt data-val=beasty><div class="capprev cap-beasty">Teks</div><div class=lbl>Beasty</div></div>
                 <div class=opt data-val=simple><div class="capprev cap-simple">Teks</div><div class=lbl>Simple</div></div>
+                <div class=opt data-val=impact><div class="capprev cap-impact">Teks</div><div class=lbl>Impact</div></div>
+                <div class=opt data-val=clean><div class="capprev cap-clean">Teks</div><div class=lbl>Clean</div></div>
+                <div class=opt data-val=boxed><div class="capprev cap-boxed">Teks</div><div class=lbl>Boxed</div></div>
               </div>
             </div>
             <div class=field><div class=flabel>06 · Model AI</div>
               <div class=opts id=aProv></div>
               <div id=aProvHint class=sub style="margin-top:7px"></div>
             </div>
+          </div>
+          <div class=microGrid>
+            <div class=field><div class=flabel>07 · Posisi caption</div><div class=opts id=aCapPos>
+              <div class=opt data-val=top><div class=lbl>Atas</div></div><div class=opt data-val=center><div class=lbl>Tengah</div></div><div class="opt sel" data-val=bottom><div class=lbl>Bawah</div></div>
+            </div></div>
+            <div class=field><div class=flabel>08 · Ukuran teks</div><div class=opts id=aCapSize>
+              <div class=opt data-val=small><div class=lbl>S</div></div><div class="opt sel" data-val=medium><div class=lbl>M</div></div><div class=opt data-val=large><div class=lbl>L</div></div>
+            </div></div>
+            <div class=field><div class=flabel>09 · Warna highlight</div><div class=opts id=aCapColor>
+              <div class="opt sel" data-val="#FF542B" title="Oranye"><span class=colorDot style="background:#FF542B"></span></div><div class=opt data-val="#FFD400" title="Kuning"><span class=colorDot style="background:#FFD400"></span></div><div class=opt data-val="#00D084" title="Hijau"><span class=colorDot style="background:#00D084"></span></div><div class=opt data-val="#FFFFFF" title="Putih"><span class=colorDot style="background:#fff"></span></div>
+            </div></div>
+            <div class=field style="grid-column:1/-1"><div class=flabel>10 · Gaya judul hook</div><div class=opts id=aHookStyle>
+              <div class="opt sel" data-val=punch><span class="hookPrev hook-punch">Viral</span><div class=lbl>Punch</div></div><div class=opt data-val=clean><span class="hookPrev hook-clean">Insight</span><div class=lbl>Clean pill</div></div><div class=opt data-val=dark><span class="hookPrev hook-dark">Wajib tahu</span><div class=lbl>Dark label</div></div>
+            </div></div>
           </div>
           <div class="field inline" style="margin-top:4px"><label class=chip title="highlight kata aktif"><input type=checkbox id=aWord checked> Caption per-kata</label>
             <label class=chip title="judul/hook 3 detik di atas video"><input type=checkbox id=aHook checked> Judul hook (3 dtk)</label></div>
@@ -662,7 +686,7 @@ function updateSpec(){const el=$('aSpec');if(!el)return;
   const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?'warna':'blur'):'';
   const rows=[['Rasio',getSel('aAspect')],['Isi frame',fill+(bg?' · '+bg:'')],['Resolusi',getSel('aRes')],
    ['Jumlah klip','≤ '+getSel('aCount')],['Caption',getSel('aPreset')+($('aWord')&&$('aWord').checked?' · kata':'')],
-   ['Hook',$('aHook')&&$('aHook').checked?'3 dtk':'off'],['Model AI',getSel('aProv')||'—']];
+   ['Posisi / ukuran',getSel('aCapPos')+' · '+getSel('aCapSize')],['Hook',$('aHook')&&$('aHook').checked?getSel('aHookStyle')+' · 3 dtk':'off'],['Model AI',getSel('aProv')||'—']];
   el.innerHTML=rows.map(([k,v])=>`<div class=sp><span>${k}</span><b class="${k==='Model AI'&&!v?'':'on'}">${(v||'—').toString().toUpperCase()}</b></div>`).join('')}
 // show background options only when Fit is chosen (Auto 'a*' and Editor 'm*')
 function syncBg(pfx){const f=document.getElementById(pfx+'BgField');if(f)f.style.display=getSel(pfx+'Fill')==='fit'?'':'none';
@@ -715,7 +739,7 @@ async function startAuto(){const url=$('aUrl').value.trim();if(!url)return;const
  if(!provider)return $('aStatus').innerHTML='Belum ada API key. <a href="#" onclick="showView(\'settings\');return false">Tambah di Pengaturan →</a>';
  b.disabled=true;b.textContent='Memproses…';$('aResults').innerHTML='';$('aProg').style.display='block';$('aBar').style.width='8%';
  const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?$('aBgColor').value:'blur'):undefined;
- try{const{jobId}=await post('/auto',{url,aspect:getSel('aAspect'),fill,bg,resolution:getSel('aRes'),count:+getSel('aCount'),preset:getSel('aPreset'),wordByWord:$('aWord').checked,hook:$('aHook').checked,provider});
+ try{const{jobId}=await post('/auto',{url,aspect:getSel('aAspect'),fill,bg,resolution:getSel('aRes'),count:+getSel('aCount'),preset:getSel('aPreset'),wordByWord:$('aWord').checked,captionPosition:getSel('aCapPos'),captionSize:getSel('aCapSize'),captionColor:getSel('aCapColor'),hook:$('aHook').checked,hookStyle:getSel('aHookStyle'),motion:true,provider});
   await poll(jobId)}catch(e){$('aStatus').textContent='Gagal: '+e.message}finally{b.disabled=false;b.innerHTML='<svg class=ic14><use href=\'#i-auto\'/></svg> Buat shorts'}}
 async function poll(jobId){while(true){const j=await (await fetch('/auto/'+jobId)).json();
   $('aStatus').textContent=j.step||'';

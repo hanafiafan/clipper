@@ -82,6 +82,9 @@ const PRESETS = {
   karaoke: 'FontName=Komika Axis,FontSize=13,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=2,MarginV=50',
   beasty: 'FontName=THE BOLD FONT,FontSize=16,PrimaryColour=&H0000D5FF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Bold=1,Alignment=2,MarginV=50',
   simple: 'FontName=Arial,FontSize=11,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H66000000,BorderStyle=3,Outline=0,Shadow=0,Alignment=2,MarginV=45',
+  impact: 'FontName=THE BOLD FONT,FontSize=17,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=4,Shadow=2,Bold=1,Alignment=2,MarginV=50',
+  clean: 'FontName=Arial,FontSize=12,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=2,MarginV=50',
+  boxed: 'FontName=Arial,FontSize=11,PrimaryColour=&H00000000,OutlineColour=&H00000000,BackColour=&H00FFFFFF,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2,MarginV=45',
 };
 const run = (cmd, args, cwd) => new Promise((ok, no) =>
   execFile(cmd, args, { cwd, maxBuffer: 1 << 26 }, (e, _o, err) => e ? no(new Error(err.slice(-300) || e.message)) : ok()));
@@ -121,10 +124,17 @@ const KSTYLE = {
   karaoke: { font: 'Komika Axis', factor: 0.06, bold: -1, outline: 3, hl: '#00FF66' },
   beasty:  { font: 'THE BOLD FONT', factor: 0.07, bold: -1, outline: 4, hl: '#FFB800' },
   simple:  { font: 'Arial', factor: 0.05, bold: 0, outline: 2, hl: '#FFD400' },
+  impact:  { font: 'THE BOLD FONT', factor: 0.075, bold: -1, outline: 5, hl: '#FF542B' },
+  clean:   { font: 'Arial', factor: 0.052, bold: -1, outline: 2, hl: '#FF542B' },
+  boxed:   { font: 'Arial', factor: 0.048, bold: -1, outline: 1, hl: '#FF542B' },
 };
 // Build an ASS file: each word is one event showing its line with the active word colored (true per-word highlight).
-function buildKaraokeAss(words, presetId, w, h) {
-  const k = KSTYLE[presetId] || KSTYLE.karaoke, size = Math.round(h * k.factor), marginV = Math.round(h * 0.12);
+function buildKaraokeAss(words, presetId, w, h, opts = {}) {
+  const k = KSTYLE[presetId] || KSTYLE.karaoke;
+  const scale = { small: .82, medium: 1, large: 1.22 }[opts.size] || 1;
+  const size = Math.round(h * k.factor * scale), pos = ['top', 'center', 'bottom'].includes(opts.position) ? opts.position : 'bottom';
+  const alignment = { top: 8, center: 5, bottom: 2 }[pos], marginV = Math.round(h * (pos === 'bottom' ? .12 : .08));
+  const highlight = /^#[0-9a-fA-F]{6}$/.test(opts.color || '') ? opts.color : k.hl;
   const lines = []; let cur = [];
   const flush = () => { if (cur.length) { lines.push(cur); cur = []; } };
   for (let i = 0; i < words.length; i++) { // group into short lines for readability
@@ -139,7 +149,7 @@ function buildKaraokeAss(words, presetId, w, h) {
   for (const line of lines) {
     for (let i = 0; i < line.length; i++) {
       const start = line[i].t0, end = i + 1 < line.length ? line[i + 1].t0 : line[i].t1; // continuous within line
-      const text = line.map((wd, j) => j === i ? `{\\c${hexAss(k.hl)}}${esc(wd.text)}{\\c${WHITE}}` : esc(wd.text)).join(' ');
+      const text = line.map((wd, j) => j === i ? `{\\c${hexAss(highlight)}}${esc(wd.text)}{\\c${WHITE}}` : esc(wd.text)).join(' ');
       events.push(`Dialogue: 0,${assTime(start)},${assTime(end)},K,,0,0,0,,${text}`);
     }
   }
@@ -149,7 +159,7 @@ PlayResX: ${w}
 PlayResY: ${h}
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,BackColour,Bold,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: K,${k.font},${size},${WHITE},&H00000000,&H66000000,${k.bold},1,${k.outline},0,2,40,40,${marginV},1
+Style: K,${k.font},${size},${WHITE},&H00000000,&H66000000,${k.bold},1,${k.outline},0,${alignment},40,40,${marginV},1
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 ${events.join('\n')}`;
@@ -260,7 +270,7 @@ async function concatSegments(srcId, segs) {
 
 // Render one clip (shared by /clip and /auto). p has resolved params; returns the history record.
 async function makeClip(p) {
-  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, motion, logo, sticker, focal, meta, aspect, fill, bg } = p;
+  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, captionPosition, captionSize, captionColor, motion, logo, sticker, focal, meta, aspect, fill, bg } = p;
   const useSpec = aspect && RES[resolution][aspect];          // flexible aspect+fill+bg path
   const arKey = useSpec ? aspect : (FORMATS[mode][0] || '9:16');
   const isColorBg = useSpec && fill === 'fit' && typeof bg === 'string' && /^#?[0-9a-fA-F]{6}$/.test(bg);
@@ -285,7 +295,7 @@ async function makeClip(p) {
   if (vf) { steps.push(vf.startsWith('[0:v]') ? vf + '[vb]' : `[0:v]${vf}[vb]`); label = '[vb]'; }
   if (captions && wordByWord) {
     const words = await transcribeWords(src, s, e, base);
-    if (words.length) { fs.writeFileSync(path.join(OUT, base + '.ass'), buildKaraokeAss(words, preset, w, h));
+    if (words.length) { fs.writeFileSync(path.join(OUT, base + '.ass'), buildKaraokeAss(words, preset, w, h, { position: captionPosition, size: captionSize, color: captionColor }));
       steps.push(`${label}subtitles=${base}.ass:fontsdir='${FONTSDIR}'[vc]`); label = '[vc]'; }
   } else if (captions && await transcribe(src, s, e, base)) {
     steps.push(`${label}subtitles=${base}.srt:fontsdir='${FONTSDIR}':force_style='${PRESETS[preset]}'[vc]`); label = '[vc]';
@@ -461,12 +471,13 @@ http.createServer(async (req, res) => {
             J.step = `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`;
             const focal = Number.isFinite(+c.face_x) && Number.isFinite(+c.face_y) ? { x: +c.face_x, y: +c.face_y } : null;
             const hookTxt = String(c.hook || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); // ringkas: ≤4 kata / 24 char
-            const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, rounded: true, y: 12, duration: 3 } : null; // atas, 3 dtk, agar tak nutup caption
+            const hookStyles = { punch: { bg: '#FF542B', color: '#171916', rounded: false }, clean: { bg: '#F0F3ED', color: '#171916', rounded: true }, dark: { bg: '#171916', color: '#FFFFFF', rounded: false } };
+            const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, ...(hookStyles[p.hookStyle] || hookStyles.punch) } : null;
             let clipSrc = srcId, start = c.segs[0].start, end = c.segs[0].end;
             if (c.segs.length > 1) { clipSrc = await concatSegments(srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
             const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
             const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-              wordByWord: p.wordByWord !== false, motion: true, focal, sticker,
+              wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor, motion: p.motion !== false, focal, sticker,
               meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
                 reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } });
             J.clips.push(rec); J.done = i + 1;
