@@ -320,6 +320,7 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
 .cap-beasty,.cap-impact{font-family:'THE BOLD FONT',sans-serif}.cap-clean,.cap-boxed{font-family:Arial,sans-serif}
 .topbar{padding-bottom:30px}.topbar h1{line-height:1;letter-spacing:-.045em;font-size:clamp(46px,6vw,84px)}
 video.preview[hidden]{display:none}
+.customHighlight{display:flex;gap:8px;align-items:center;margin-top:12px}.customHighlight input[type=color]{flex:0 0 48px;width:48px;height:44px;padding:4px;cursor:pointer}.customHighlight input[type=text]{min-width:0;width:100%;font-family:var(--mono);text-transform:uppercase}.highlightHint{font:10px/1.5 var(--mono);color:var(--muted);margin:8px 0 0}.customHighlight input[aria-invalid=true]{border-color:#bd321d}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -489,7 +490,11 @@ video.preview[hidden]{display:none}
             </div></div>
             <div class=field><div class=flabel>09 · Warna highlight</div><div class=opts id=aCapColor>
               <div class="opt sel" data-val="#FF542B" title="Oranye"><span class=colorDot style="background:#FF542B"></span></div><div class=opt data-val="#FFD400" title="Kuning"><span class=colorDot style="background:#FFD400"></span></div><div class=opt data-val="#00D084" title="Hijau"><span class=colorDot style="background:#00D084"></span></div><div class=opt data-val="#FFFFFF" title="Putih"><span class=colorDot style="background:#fff"></span></div>
-            </div></div>
+              <button type=button class=opt id=aCustomHighlight data-val="#FF542B" aria-label="Gunakan warna highlight custom"><span class=colorDot id=aCustomSwatch style="background:#FF542B"></span><span class=lbl>Custom</span></button>
+            </div>
+              <div class=customHighlight><input type=color id=aHighlightPicker value="#FF542B" aria-label="Pilih warna highlight custom"><input type=text id=aHighlightHex value="#FF542B" maxlength=7 spellcheck=false aria-label="Kode HEX highlight" aria-describedby=aHighlightHint></div>
+              <p class=highlightHint id=aHighlightHint>Pilih warna bebas atau masukkan HEX, mis. #FF542B.</p>
+            </div>
             <div class=field style="grid-column:1/-1"><div class=flabel>10 · Gaya judul hook</div><div class=opts id=aHookStyle>
               <div class="opt sel" data-val=punch><span class="hookPrev hook-punch">Viral</span><div class=lbl>Punch</div></div><div class=opt data-val=clean><span class="hookPrev hook-clean">Insight</span><div class=lbl>Clean pill</div></div><div class=opt data-val=dark><span class="hookPrev hook-dark">Wajib tahu</span><div class=lbl>Dark label</div></div>
             </div></div>
@@ -723,6 +728,16 @@ function decorateHeaders(){document.querySelectorAll('.card h2').forEach(h=>{if(
 document.addEventListener('click',e=>{const o=e.target.closest('.opts > .opt');if(!o)return;
   [...o.parentElement.children].forEach(c=>c.classList.remove('sel'));o.classList.add('sel');updateSpec();updateCaptionPreview()});
 function getSel(group){const s=document.querySelector('#'+group+' .opt.sel');return s?s.dataset.val:''}
+function setCustomHighlight(value){
+ const hex=value.startsWith('#')?value:'#'+value;
+ if(!/^#[0-9a-f]{6}$/i.test(hex)){$('aHighlightHex').setAttribute('aria-invalid','true');$('aHighlightHint').textContent='Gunakan 6 digit HEX, mis. #FF542B.';return false}
+ const color=hex.toUpperCase();$('aHighlightHex').value=color;$('aHighlightHex').setAttribute('aria-invalid','false');$('aHighlightPicker').value=color;
+ $('aCustomHighlight').dataset.val=color;$('aCustomSwatch').style.background=color;
+ document.querySelectorAll('#aCapColor .opt').forEach(o=>o.classList.toggle('sel',o.id==='aCustomHighlight'));
+ $('aHighlightHint').textContent='Warna custom diterapkan ke preview dan hasil caption.';updateCaptionPreview();updateSpec();return true;
+}
+$('aHighlightPicker').addEventListener('input',e=>setCustomHighlight(e.target.value));
+$('aHighlightHex').addEventListener('input',e=>setCustomHighlight(e.target.value));
 function updateEditorFont(){const el=$('editorFontPreview'),preset=$('preset').value;
  document.querySelectorAll('#editorFontStyles button').forEach(b=>{b.classList.toggle('sel',b.dataset.preset===preset);b.setAttribute('aria-pressed',String(b.dataset.preset===preset))});
  const fonts={karaoke:'Komika Axis',beasty:'THE BOLD FONT',impact:'THE BOLD FONT',simple:'Arial',clean:'Arial',boxed:'Arial'};
@@ -749,7 +764,7 @@ function updateSpec(){const el=$('aSpec');if(!el)return;
   const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?'warna':'blur'):'';
   const rows=[['Rasio',getSel('aAspect')],['Isi frame',fill+(bg?' · '+bg:'')],['Resolusi',getSel('aRes')],
    ['Jumlah klip','≤ '+getSel('aCount')],['Caption',getSel('aPreset')+($('aWord')&&$('aWord').checked?' · kata':'')],
-   ['Posisi / ukuran',getSel('aCapPos')+' · '+getSel('aCapSize')],['Hook',$('aHook')&&$('aHook').checked?getSel('aHookStyle')+' · 3 dtk':'off'],['Model AI',getSel('aProv')||'—']];
+   ['Posisi / ukuran',getSel('aCapPos')+' · '+getSel('aCapSize')],['Highlight',getSel('aCapColor')],['Hook',$('aHook')&&$('aHook').checked?getSel('aHookStyle')+' · 3 dtk':'off'],['Model AI',getSel('aProv')||'—']];
   el.innerHTML=rows.map(([k,v])=>`<div class=sp><span>${k}</span><b class="${k==='Model AI'&&!v?'':'on'}">${(v||'—').toString().toUpperCase()}</b></div>`).join('')}
 // show background options only when Fit is chosen (Auto 'a*' and Editor 'm*')
 function syncBg(pfx){const f=document.getElementById(pfx+'BgField');if(f)f.style.display=getSel(pfx+'Fill')==='fit'?'':'none';
