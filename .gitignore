@@ -1,0 +1,24 @@
+# Dependencies and packaged builds
+node_modules/
+dist/
+
+# Runtime data and generated media
+work/
+out/
+downloads/
+logos/
+media/
+history.json
+
+# Local credentials
+keys.json
+.env
+.env.*
+
+# Large platform-specific runtime assets
+bin/
+models/
+
+# OS and editor files
+.DS_Store
+*.log
