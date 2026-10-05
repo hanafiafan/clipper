@@ -217,6 +217,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .cfgGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;margin-top:4px}
 .cfgGrid .field{margin-top:0}
 .cfgGrid .wide{grid-column:1/-1}.captionOpts{display:grid;grid-template-columns:repeat(6,minmax(92px,1fr));gap:8px}.captionOpts .opt{min-width:0;padding:10px 7px}.captionOpts .capprev{width:100%;min-width:0}.microGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line2)}.colorOpts{display:flex;gap:8px}.colorDot{width:32px;height:32px;border:2px solid #171916;display:block}.opt.sel .colorDot{box-shadow:0 0 0 3px var(--surface),0 0 0 5px #171916}.microGrid .opt{padding:9px 12px;min-width:58px}.hookPrev{width:68px;height:26px;display:grid;place-items:center;font:700 9px var(--mono);text-transform:uppercase}.hook-punch{background:var(--accent);color:#171916}.hook-clean{background:#f0f3ed;color:#171916;border-radius:14px}.hook-dark{background:#171916;color:#fff}
+.captionLive{display:grid;grid-template-columns:230px 1fr;gap:20px;margin-top:16px;padding:16px;background:#171916;color:#edf1ea;border:2px solid #171916}.captionStage{height:290px;position:relative;overflow:hidden;background:#090a09}.captionStage>img{width:100%;height:100%;object-fit:cover;filter:brightness(.7) saturate(.75)}.liveText{--hl:#FF542B;position:absolute;z-index:2;left:10px;right:10px;text-align:center;color:#fff;line-height:1.08;transition:top .18s,bottom .18s,font-size .18s}.liveText.pos-top{top:13%;bottom:auto}.liveText.pos-center{top:46%;bottom:auto;transform:translateY(-50%)}.liveText.pos-bottom{bottom:13%;top:auto}.liveText.size-small{font-size:17px}.liveText.size-medium{font-size:22px}.liveText.size-large{font-size:28px}.liveText span{color:var(--hl)}.liveText.pv-karaoke{font-family:"Komika Axis",var(--body);font-weight:800;text-shadow:2px 2px 0 #000,-1px -1px 0 #000}.liveText.pv-beasty{font-family:var(--disp);font-weight:400;text-transform:uppercase;text-shadow:3px 3px 0 #000,-2px -2px 0 #000}.liveText.pv-simple{font-family:Arial,sans-serif;background:rgba(0,0,0,.7);padding:6px;font-weight:600}.liveText.pv-impact{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:30px;text-shadow:3px 3px 0 #000,-2px -2px 0 #000}.liveText.pv-clean{font-family:var(--body);font-weight:700;letter-spacing:-.04em;text-shadow:0 2px 6px #000}.liveText.pv-clean span{border-bottom:4px solid var(--hl);color:#fff}.liveText.pv-boxed{font-family:var(--mono);font-weight:700;background:#f2efe6;color:#171916;padding:8px;box-shadow:6px 6px 0 var(--hl);text-shadow:none}.liveText.pv-boxed span{background:var(--hl);color:#171916;padding:0 3px}.captionGuide{display:flex;flex-direction:column;justify-content:space-between;padding:4px 0}.captionGuide .cgTop{font:9px var(--mono);letter-spacing:.15em;color:#8d958b;text-transform:uppercase}.captionGuide h3{font:700 28px/1 var(--body);letter-spacing:-.05em;margin:10px 0}.captionGuide p{font:11px/1.7 var(--mono);color:#9ca49a;margin:0}.captionGuide .liveSpec{border-top:1px solid #454a44;padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px;font:8px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#7f877d}.captionGuide .liveSpec b{display:block;color:#edf1ea;font-size:10px;margin-top:3px}.captionLive::after{content:"PREVIEW / 05";position:absolute}.captionLive{position:relative}.captionLive::after{right:10px;top:9px;font:8px var(--mono);letter-spacing:.12em;color:#727a70}
 .launch{position:sticky;top:18px;background:var(--surface);border-color:var(--line2)}
 .launchhead{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .launchhead span:last-child{color:var(--accent)}
@@ -226,7 +227,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .speclist .sp b{color:var(--text);font-weight:600}
 .speclist .sp b.on{color:var(--accent)}
 @media(max-width:980px){.autogrid{grid-template-columns:1fr}.heroband{grid-template-columns:1fr}.launch{position:static}}
-@media(max-width:760px){.captionOpts{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:1fr}}@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}.cfgGrid .wide{grid-column:auto}}
+@media(max-width:760px){.captionOpts{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:1fr}.captionLive{grid-template-columns:1fr}.captionStage{height:360px;max-width:280px;width:100%;margin:auto}}@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}.cfgGrid .wide{grid-column:auto}}
 
 
 /* waveform signal map */
@@ -438,12 +439,16 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
             </div>
             <div class="field wide"><div class=flabel>05 · Gaya caption</div>
               <div class="opts captionOpts" id=aPreset>
-                <div class="opt sel" data-val=karaoke><div class="capprev cap-karaoke">Teks</div><div class=lbl>Karaoke</div></div>
-                <div class=opt data-val=beasty><div class="capprev cap-beasty">Teks</div><div class=lbl>Beasty</div></div>
-                <div class=opt data-val=simple><div class="capprev cap-simple">Teks</div><div class=lbl>Simple</div></div>
-                <div class=opt data-val=impact><div class="capprev cap-impact">Teks</div><div class=lbl>Impact</div></div>
-                <div class=opt data-val=clean><div class="capprev cap-clean">Teks</div><div class=lbl>Clean</div></div>
-                <div class=opt data-val=boxed><div class="capprev cap-boxed">Teks</div><div class=lbl>Boxed</div></div>
+                <div class="opt sel" data-val=karaoke><div class="capprev cap-karaoke">Kata <span>aktif</span></div><div class=lbl>Karaoke</div></div>
+                <div class=opt data-val=beasty><div class="capprev cap-beasty">Bikin Viral</div><div class=lbl>Beasty</div></div>
+                <div class=opt data-val=simple><div class="capprev cap-simple">Teks bersih</div><div class=lbl>Simple</div></div>
+                <div class=opt data-val=impact><div class="capprev cap-impact">STOP!</div><div class=lbl>Impact</div></div>
+                <div class=opt data-val=clean><div class="capprev cap-clean">Modern</div><div class=lbl>Clean</div></div>
+                <div class=opt data-val=boxed><div class="capprev cap-boxed">Editorial</div><div class=lbl>Boxed</div></div>
+              </div>
+              <div class=captionLive>
+                <div class=captionStage><img src="/brand/preview-podcast-host.webp" alt="Frame untuk preview caption"><div id=captionPreviewText class="liveText pv-karaoke pos-bottom size-medium">Ide bagus selalu<br><span>dimulai dari masalah.</span></div></div>
+                <div class=captionGuide><div><div class=cgTop>Live caption simulator</div><h3 id=captionPreviewName>Karaoke</h3><p>Klik gaya, posisi, ukuran, atau warna di bawah. Preview ini akan berubah langsung seperti hasil video final.</p></div><div class=liveSpec><span>Posisi<b id=captionPreviewPos>Bawah</b></span><span>Ukuran<b id=captionPreviewSize>Medium</b></span><span>Highlight<b id=captionPreviewColor>Orange</b></span><span>Mode<b>Per-kata</b></span></div></div>
               </div>
             </div>
             <div class=field><div class=flabel>06 · Model AI</div>
@@ -679,8 +684,15 @@ function decorateHeaders(){document.querySelectorAll('.card h2').forEach(h=>{if(
   x.innerHTML='<use href="#i-cross"/>';h.appendChild(x)})}
 // visual option pickers: click selects within its group; getSel reads the chosen value
 document.addEventListener('click',e=>{const o=e.target.closest('.opts > .opt');if(!o)return;
-  [...o.parentElement.children].forEach(c=>c.classList.remove('sel'));o.classList.add('sel');updateSpec()});
+  [...o.parentElement.children].forEach(c=>c.classList.remove('sel'));o.classList.add('sel');updateSpec();updateCaptionPreview()});
 function getSel(group){const s=document.querySelector('#'+group+' .opt.sel');return s?s.dataset.val:''}
+function updateCaptionPreview(){const el=$('captionPreviewText');if(!el)return;
+  const preset=getSel('aPreset')||'karaoke',pos=getSel('aCapPos')||'bottom',size=getSel('aCapSize')||'medium',color=getSel('aCapColor')||'#FF542B';
+  el.className=`liveText pv-${preset} pos-${pos} size-${size}`;el.style.setProperty('--hl',color);
+  const names={karaoke:'Karaoke',beasty:'Beasty Bold',simple:'Simple Subtitle',impact:'Impact Hook',clean:'Clean Modern',boxed:'Boxed Editorial'};
+  const positions={top:'Atas',center:'Tengah',bottom:'Bawah'},sizes={small:'Small',medium:'Medium',large:'Large'},colors={'#FF542B':'Orange','#FFD400':'Yellow','#00D084':'Green','#FFFFFF':'White'};
+  $('captionPreviewName').textContent=names[preset];$('captionPreviewPos').textContent=positions[pos];$('captionPreviewSize').textContent=sizes[size];$('captionPreviewColor').textContent=colors[color]||color;
+}
 // live mission-spec readout in the launch panel
 function updateSpec(){const el=$('aSpec');if(!el)return;
   const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?'warna':'blur'):'';
@@ -796,6 +808,6 @@ async function ytDownload(){const url=$('dlUrl').value.trim();if(!url)return;con
 
 ['aWord','aHook'].forEach(id=>{const el=$(id);if(el)el.addEventListener('change',updateSpec)});
 document.addEventListener('input',e=>{if(e.target.id==='aBgColor')updateSpec()});
-buildWave();loadHist();loadProv();loadKeys();decorateHeaders();updateSpec();
+buildWave();loadHist();loadProv();loadKeys();decorateHeaders();updateSpec();updateCaptionPreview();
 </script>
 </html>
