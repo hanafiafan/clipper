@@ -1,0 +1,61 @@
+{
+  "name": "hellens-clipper",
+  "version": "1.0.0",
+  "description": "Pemotong klip pendek bertenaga AI (lokal)",
+  "main": "main.js",
+  "scripts": {
+    "server": "node server.js",
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.hellens.app",
+  "productName": "Hellens Clipper",
+    "files": [
+      "main.js",
+      "server.js",
+      "index.html",
+      "scripts/**",
+      "fonts/**",
+      "brand/**"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "models",
+        "to": "models",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.video",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "AudioVideo"
+    },
+    "dmg": {
+      "icon": false
+    }
+  },
+  "productName": "Hellens Clipper"
+}
