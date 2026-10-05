@@ -5,6 +5,8 @@
 <title>Hellens Clipper</title>
 <link rel=icon href="/brand/logo-black.png">
 <style>
+@font-face{font-family:'Komika Axis';src:url('/fonts/KOMIKAX_.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'THE BOLD FONT';src:url('/fonts/THEBOLDFONT-FREEVERSION.ttf') format('truetype');font-display:swap}
 @font-face{font-family:'Anton';src:url('/brand/Anton.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:'Space Grotesk';src:url('/brand/SpaceGrotesk.ttf') format('truetype');font-weight:300 700;font-style:normal;font-display:swap}
 @font-face{font-family:'Space Mono';src:url('/brand/SpaceMono-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
@@ -218,6 +220,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .cfgGrid .field{margin-top:0}
 .cfgGrid .wide{grid-column:1/-1}.templateBrowser{margin-top:8px;background:#20211f;border:2px solid #171916;color:#eef1ec}.templateTabs{display:flex;border-bottom:1px solid #41433f;overflow-x:auto}.templateTab{flex:1;justify-content:center;border:0;border-right:1px solid #41433f;background:#292a28;color:#858982;padding:12px 10px;box-shadow:none!important;transform:none!important}.templateTab.active{background:#4b4d49;color:#fff}.templateTab::after{display:none}.templateTools{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid #41433f}.templateTools .chip{color:#eef1ec;border-color:#62645f;background:transparent}.templateSearch{background:#111210;border-color:#3c3e3a!important;color:#fff!important;min-height:38px!important}.templateSearch:focus{background:#111210;box-shadow:inset 4px 0 0 var(--accent)}.captionOpts{display:grid;grid-template-columns:repeat(5,minmax(105px,1fr));gap:10px;padding:12px;max-height:410px;overflow:auto}.captionOpts .opt{min-width:0;padding:8px;background:#292a28;border-color:#353733;color:#fff;min-height:104px;justify-content:center}.captionOpts .opt:hover{border-color:#7b7e77}.captionOpts .opt.sel{background:#353733;border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}.captionOpts .capprev{width:100%;min-width:0;height:48px}.captionOpts .lbl{font-size:9px;color:#9b9f98}.captionOpts .opt.sel .lbl{color:var(--accent)}.templateBadge{position:absolute;top:5px;left:5px;background:#f2efe6;color:#171916;font:700 7px var(--mono);padding:1px 4px;letter-spacing:.06em}.templateNum{position:absolute;right:5px;bottom:3px;color:#686b65;font:7px var(--mono)}.tpl-slant{transform:rotate(-5deg);font-style:italic}.tpl-stack{line-height:.78;flex-direction:column}.tpl-outline{color:transparent!important;-webkit-text-stroke:1px #fff;text-shadow:none!important}.tpl-glow{text-shadow:0 0 5px var(--accent),0 0 10px var(--accent)!important}.tpl-marker span{background:#FFD400;color:#171916;padding:1px 3px}.tpl-pop span{font-size:1.35em;color:#FFD400}.tpl-serif{font-family:Georgia,serif!important;font-weight:700}.microGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line2)}.colorOpts{display:flex;gap:8px}.colorDot{width:32px;height:32px;border:2px solid #171916;display:block}.opt.sel .colorDot{box-shadow:0 0 0 3px var(--surface),0 0 0 5px #171916}.microGrid .opt{padding:9px 12px;min-width:58px}.hookPrev{width:68px;height:26px;display:grid;place-items:center;font:700 9px var(--mono);text-transform:uppercase}.hook-punch{background:var(--accent);color:#171916}.hook-clean{background:#f0f3ed;color:#171916;border-radius:14px}.hook-dark{background:#171916;color:#fff}
 .captionLive{display:grid;grid-template-columns:230px 1fr;gap:20px;margin-top:16px;padding:16px;background:#171916;color:#edf1ea;border:2px solid #171916}.captionStage{height:290px;position:relative;overflow:hidden;background:#090a09}.captionStage>img{width:100%;height:100%;object-fit:cover;filter:brightness(.7) saturate(.75)}.liveText{--hl:#FF542B;position:absolute;z-index:2;left:10px;right:10px;text-align:center;color:#fff;line-height:1.08;transition:top .18s,bottom .18s,font-size .18s}.liveText.pos-top{top:13%;bottom:auto}.liveText.pos-center{top:46%;bottom:auto;transform:translateY(-50%)}.liveText.pos-bottom{bottom:13%;top:auto}.liveText.size-small{font-size:17px}.liveText.size-medium{font-size:22px}.liveText.size-large{font-size:28px}.liveText span{color:var(--hl)}.liveText.pv-karaoke{font-family:"Komika Axis",var(--body);font-weight:800;text-shadow:2px 2px 0 #000,-1px -1px 0 #000}.liveText.pv-beasty{font-family:var(--disp);font-weight:400;text-transform:uppercase;text-shadow:3px 3px 0 #000,-2px -2px 0 #000}.liveText.pv-simple{font-family:Arial,sans-serif;background:rgba(0,0,0,.7);padding:6px;font-weight:600}.liveText.pv-impact{font-family:var(--disp);font-weight:400;text-transform:uppercase;font-size:30px;text-shadow:3px 3px 0 #000,-2px -2px 0 #000}.liveText.pv-clean{font-family:var(--body);font-weight:700;letter-spacing:-.04em;text-shadow:0 2px 6px #000}.liveText.pv-clean span{border-bottom:4px solid var(--hl);color:#fff}.liveText.pv-boxed{font-family:var(--mono);font-weight:700;background:#f2efe6;color:#171916;padding:8px;box-shadow:6px 6px 0 var(--hl);text-shadow:none}.liveText.pv-boxed span{background:var(--hl);color:#171916;padding:0 3px}.captionGuide{display:flex;flex-direction:column;justify-content:space-between;padding:4px 0}.captionGuide .cgTop{font:9px var(--mono);letter-spacing:.15em;color:#8d958b;text-transform:uppercase}.captionGuide h3{font:700 28px/1 var(--body);letter-spacing:-.05em;margin:10px 0}.captionGuide p{font:11px/1.7 var(--mono);color:#9ca49a;margin:0}.captionGuide .liveSpec{border-top:1px solid #454a44;padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px;font:8px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#7f877d}.captionGuide .liveSpec b{display:block;color:#edf1ea;font-size:10px;margin-top:3px}.captionLive::after{content:"PREVIEW / 05";position:absolute}.captionLive{position:relative}.captionLive::after{right:10px;top:9px;font:8px var(--mono);letter-spacing:.12em;color:#727a70}
+.fontStudio{display:grid;grid-template-columns:180px 1fr;gap:18px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line2)}.fontPreview{height:250px;position:relative;overflow:hidden;background:#171916;border:2px solid #171916}.fontPreview img{width:100%;height:100%;object-fit:cover;filter:brightness(.63) saturate(.7)}.fontControls{min-width:0}.fontPresetGrid{display:grid!important;grid-template-columns:repeat(3,1fr);gap:8px}.fontPresetGrid .opt{min-width:0;padding:8px 5px}.fontPresetGrid .capprev{width:100%;min-width:0}.fontTune{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.fontTune .opts{gap:6px}.fontTune .opt{min-width:42px;padding:8px}.fontColorRow{grid-column:1/-1}.fontColorRow .colorDot{width:26px;height:26px}.captionToggleBar{display:flex;gap:8px;flex-wrap:wrap}.fontHint{font:9px/1.6 var(--mono);color:var(--muted);margin-top:12px;padding-left:10px;border-left:2px solid var(--accent)}
 .launch{position:sticky;top:18px;background:var(--surface);border-color:var(--line2)}
 .launchhead{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .launchhead span:last-child{color:var(--accent)}
@@ -227,7 +230,7 @@ video.preview{width:100%;max-height:64vh;border:1px solid var(--line2);border-ra
 .speclist .sp b{color:var(--text);font-weight:600}
 .speclist .sp b.on{color:var(--accent)}
 @media(max-width:980px){.autogrid{grid-template-columns:1fr}.heroband{grid-template-columns:1fr}.launch{position:static}}
-@media(max-width:900px){.captionOpts{grid-template-columns:repeat(4,1fr)}}@media(max-width:760px){.captionOpts{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:1fr}.captionLive{grid-template-columns:1fr}.captionStage{height:360px;max-width:280px;width:100%;margin:auto}.templateTools{flex-direction:column;align-items:stretch}}@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}.cfgGrid .wide{grid-column:auto}.captionOpts{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.captionOpts{grid-template-columns:repeat(4,1fr)}}@media(max-width:760px){.captionOpts{grid-template-columns:repeat(3,1fr)}.microGrid{grid-template-columns:1fr}.captionLive{grid-template-columns:1fr}.captionStage{height:360px;max-width:280px;width:100%;margin:auto}.templateTools{flex-direction:column;align-items:stretch}.fontStudio{grid-template-columns:1fr}.fontPreview{height:340px;max-width:250px;width:100%;margin:auto}}@media(max-width:620px){.cfgGrid{grid-template-columns:1fr}.cfgGrid .wide{grid-column:auto}.captionOpts{grid-template-columns:repeat(2,1fr)}.fontPresetGrid{grid-template-columns:repeat(2,1fr)}.fontTune{grid-template-columns:1fr}.fontColorRow{grid-column:auto}}
 
 
 /* waveform signal map */
@@ -309,6 +312,14 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
 .sampleTop{position:absolute;z-index:2;left:14px;right:14px;top:14px;display:flex;justify-content:space-between;align-items:center;font:8px var(--mono);letter-spacing:.12em;text-transform:uppercase}.sampleTop span{background:#171916;padding:6px 8px}.sampleTop b{display:grid;place-items:center;width:34px;height:34px;background:var(--accent);color:#171916;font:700 16px var(--mono)}
 .sampleCaption{position:absolute;z-index:2;left:18px;right:18px;bottom:68px;text-align:center;font:700 clamp(18px,2vw,30px)/1 var(--body);letter-spacing:-.04em;text-transform:uppercase;text-shadow:2px 2px 0 #171916}.sampleCaption em{font-style:normal;color:var(--accent)}.sampleMeta{position:absolute;z-index:2;left:14px;right:14px;bottom:14px;border-top:1px solid rgba(240,243,237,.45);padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;font:8px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:#bdc4ba}.sampleMeta strong{color:#fff;font-size:9px}.samplePlay{width:25px;height:25px;border:1px solid rgba(255,255,255,.6);display:grid;place-items:center;color:var(--accent);font-size:10px}
 @media(max-width:900px){.sampleGrid{grid-template-columns:repeat(3,minmax(220px,1fr));overflow-x:auto;padding-bottom:8px}.sampleCard{min-height:390px}.sampleHead p{display:none}}@media(max-width:620px){.sampleSection{margin-top:20px}.sampleGrid{grid-template-columns:repeat(3,76vw)}.sampleCard{min-height:420px}}
+</style>
+<style>
+.fontPresetGrid{margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(94px,1fr))}
+.fontPresetGrid button::after{display:none}.fontPresetGrid button{font-size:10px;letter-spacing:0;min-width:0}
+.fontPresetGrid .sel{border-color:var(--accent);background:var(--aw)}
+.cap-beasty,.cap-impact{font-family:'THE BOLD FONT',sans-serif}.cap-clean,.cap-boxed{font-family:Arial,sans-serif}
+.topbar{padding-bottom:30px}.topbar h1{line-height:1;letter-spacing:-.045em;font-size:clamp(46px,6vw,84px)}
+video.preview[hidden]{display:none}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -566,11 +577,24 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
           </div>
 
           <div class=card>
-            <h2><span class=n>4</span> Caption</h2>
+            <h2><span class=n>4</span> Font & caption studio</h2>
             <div class=inline>
               <label class=chip><input type=checkbox id=cc checked> Caption otomatis</label>
-              <select id=preset style="flex:0 0 130px"><option value=karaoke>Karaoke<option value=beasty>Beasty<option value=simple>Simple</select>
+              <select id=preset aria-label="Gaya caption" onchange="updateEditorFont()" style="flex:0 0 150px"><option value=karaoke>Karaoke<option value=beasty>Beasty<option value=simple>Simple<option value=impact>Impact<option value=clean>Clean<option value=boxed>Boxed</select>
               <label class=chip title="highlight kata aktif (TikTok)"><input type=checkbox id=ww checked> Per-kata</label>
+            </div>
+            <div class=fontStudio>
+              <div class=fontPreview><img src="/brand/preview-podcast-host.webp" alt="Foto contoh caption"><div id=editorFontPreview class="liveText pos-bottom size-medium">Ide bagus<br><span>dimulai di sini.</span></div></div>
+              <div class=fontControls>
+                <div id=editorFontStyles class=fontPresetGrid aria-label="Pilihan gaya font"></div>
+                <label class=fld for=fontSample>Teks pratinjau</label><input id=fontSample value="Ide bagus dimulai di sini." maxlength=80>
+                <div class=fontTune>
+                  <div><label class=fld for=mCapPos>Posisi</label><select id=mCapPos><option value=bottom>Bawah<option value=center>Tengah<option value=top>Atas</select></div>
+                  <div><label class=fld for=mCapSize>Ukuran</label><select id=mCapSize><option value=small>Kecil<option value=medium selected>Sedang<option value=large>Besar</select></div>
+                  <div class=fontColorRow><label class=fld for=mCapColor>Warna highlight / teks</label><input id=mCapColor type=color value="#FF542B"></div>
+                </div>
+                <p class=fontHint>Foto dan teks contoh hanya untuk pratinjau. Caption video mengikuti transkripsi audio. Matikan per-kata untuk warna teks seluruh kalimat.</p>
+              </div>
             </div>
           </div>
 
@@ -699,6 +723,17 @@ function decorateHeaders(){document.querySelectorAll('.card h2').forEach(h=>{if(
 document.addEventListener('click',e=>{const o=e.target.closest('.opts > .opt');if(!o)return;
   [...o.parentElement.children].forEach(c=>c.classList.remove('sel'));o.classList.add('sel');updateSpec();updateCaptionPreview()});
 function getSel(group){const s=document.querySelector('#'+group+' .opt.sel');return s?s.dataset.val:''}
+function updateEditorFont(){const el=$('editorFontPreview'),preset=$('preset').value;
+ document.querySelectorAll('#editorFontStyles button').forEach(b=>{b.classList.toggle('sel',b.dataset.preset===preset);b.setAttribute('aria-pressed',String(b.dataset.preset===preset))});
+ const fonts={karaoke:'Komika Axis',beasty:'THE BOLD FONT',impact:'THE BOLD FONT',simple:'Arial',clean:'Arial',boxed:'Arial'};
+ el.className='liveText pos-'+$('mCapPos').value+' size-'+$('mCapSize').value;
+ el.style.fontFamily='"'+fonts[preset]+'", sans-serif';el.style.fontWeight=preset==='simple'?'400':'700';
+ el.style.textShadow=preset==='boxed'?'none':'1px 1px 0 #000, -1px -1px 0 #000';el.style.background=preset==='boxed'?'#000':preset==='simple'?'#0009':'transparent';
+ el.style.padding='5px';el.style.color=$('ww').checked?'#fff':$('mCapColor').value;el.style.setProperty('--hl',$('mCapColor').value);el.hidden=!$('cc').checked;
+ const words=$('fontSample').value.trim().split(/\s+/);el.replaceChildren();words.forEach((word,i)=>{const part=document.createElement('span');part.textContent=word+' ';part.style.color=$('ww').checked&&i===Math.min(2,words.length-1)?$('mCapColor').value:'inherit';el.append(part)});
+}
+['fontSample','mCapPos','mCapSize','mCapColor','ww','cc'].forEach(id=>$(id).addEventListener('input',updateEditorFont));
+['karaoke','beasty','simple','impact','clean','boxed'].forEach(p=>{const b=document.createElement('button');b.type='button';b.className='opt';b.dataset.preset=p;b.innerHTML='<span class="capprev cap-'+p+'">Ide bagus</span><span class=lbl>'+p+'</span>';b.addEventListener('click',()=>{$('preset').value=p;updateEditorFont()});$('editorFontStyles').append(b)});
 function updateCaptionPreview(){const el=$('captionPreviewText');if(!el)return;
   const preset=getSel('aPreset')||'karaoke',pos=getSel('aCapPos')||'bottom',size=getSel('aCapSize')||'medium',color=getSel('aCapColor')||'#FF542B';
   el.className=`liveText pv-${preset} pos-${pos} size-${size}`;el.style.setProperty('--hl',color);
@@ -798,7 +833,7 @@ async function clip(){if(!id)return log('Pilih video dulu.');
  const asp=getSel('mAspect'),mfill=getSel('mFill'),mbg=mfill==='fit'?(getSel('mBg')==='color'?$('mBgColor').value:'blur'):undefined;
  const fmt=asp==='original'?{mode:'original'}:{aspect:asp,fill:mfill,bg:mbg};
  try{await post('/clip',{id,start:$('s').value,end:$('e').value,...fmt,resolution:$('res').value,
-   captions:$('cc').checked,preset:$('preset').value,logo:logoCfg(),sticker:stkCfg(),
+   captions:$('cc').checked,preset:$('preset').value,captionPosition:$('mCapPos').value,captionSize:$('mCapSize').value,captionColor:$('mCapColor').value,logo:logoCfg(),sticker:stkCfg(),
    focal:$('ftOn').checked?{x:+$('ftX').value,y:+$('ftY').value}:null,wordByWord:$('ww').checked,motion:$('motion').checked});
   log('Selesai — lihat di Riwayat');loadHist()}catch(e){log(e.message)}finally{busy(false)}}
 
@@ -824,6 +859,6 @@ async function ytDownload(){const url=$('dlUrl').value.trim();if(!url)return;con
 
 ['aWord','aHook'].forEach(id=>{const el=$(id);if(el)el.addEventListener('change',updateSpec)});
 document.addEventListener('input',e=>{if(e.target.id==='aBgColor')updateSpec()});
-buildWave();loadHist();loadProv();loadKeys();decorateHeaders();updateSpec();updateCaptionPreview();
+buildWave();loadHist();loadProv();loadKeys();decorateHeaders();updateSpec();updateCaptionPreview();updateEditorFont();
 </script>
 </html>

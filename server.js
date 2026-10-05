@@ -298,7 +298,11 @@ async function makeClip(p) {
     if (words.length) { fs.writeFileSync(path.join(OUT, base + '.ass'), buildKaraokeAss(words, preset, w, h, { position: captionPosition, size: captionSize, color: captionColor }));
       steps.push(`${label}subtitles=${base}.ass:fontsdir='${FONTSDIR}'[vc]`); label = '[vc]'; }
   } else if (captions && await transcribe(src, s, e, base)) {
-    steps.push(`${label}subtitles=${base}.srt:fontsdir='${FONTSDIR}':force_style='${PRESETS[preset]}'[vc]`); label = '[vc]';
+    const scale = { small: .82, medium: 1, large: 1.22 }[captionSize] || 1;
+    const alignment = { top: 8, center: 5, bottom: 2 }[captionPosition] || 2;
+    let style = PRESETS[preset].replace(/FontSize=(\d+)/, (_, n) => 'FontSize=' + Math.round(+n * scale)).replace(/Alignment=\d+/, 'Alignment=' + alignment);
+    if (/^#[0-9a-fA-F]{6}$/.test(captionColor || '')) style = style.replace(/PrimaryColour=[^,]+/, 'PrimaryColour=' + hexAss(captionColor));
+    steps.push(`${label}subtitles=${base}.srt:fontsdir='${FONTSDIR}':force_style='${style}'[vc]`); label = '[vc]';
   }
   const inputs = ['-i', src]; let nIn = 1;
   if (logoPath) {
@@ -340,6 +344,7 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && u.pathname.startsWith('/src/')) return serve(res, WORK, u.pathname.slice(5));
     if (req.method === 'GET' && u.pathname.startsWith('/out/')) return serve(res, OUT, u.pathname.slice(5));
     if (req.method === 'GET' && u.pathname.startsWith('/brand/')) return serve(res, path.join(__dirname, 'brand'), u.pathname.slice(7));
+    if (req.method === 'GET' && u.pathname.startsWith('/fonts/')) return serve(res, FONTSDIR, u.pathname.slice(7));
     if (req.method === 'GET' && u.pathname.startsWith('/logos/')) return serve(res, LOGOS, u.pathname.slice(7));
     if (req.method === 'GET' && u.pathname === '/logos')
       return json(res, 200, { logos: fs.readdirSync(LOGOS).filter(f => f.endsWith('.png')).map(f => ({ id: f.slice(0, -4), url: '/logos/' + f })) });
@@ -433,7 +438,8 @@ http.createServer(async (req, res) => {
       const s = Number(p.start), e = Number(p.end);
       if (!/^[a-f0-9]{12}$/.test(p.id) || !(s >= 0) || !(e > s) || !(resolution in RES) || !(preset in PRESETS) || (!useSpec && !(mode in FORMATS))) return json(res, 400, { error: 'bad input' });
       const rec = await makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
-        wordByWord: !!p.wordByWord, motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal });
+        wordByWord: !!p.wordByWord, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor,
+        motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal });
       return json(res, 200, rec);
     }
     // --- Auto-pilot: 1 URL -> beberapa short ber-grade, siap posting ---
