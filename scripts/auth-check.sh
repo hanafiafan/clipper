@@ -63,6 +63,26 @@ chk "perubahan terbaca user"        "$(curl -s $U/auth/content | grep -c neon)" 
 chk "reset ke default"              "$(code -b $OJ $J -d '{"key":"hook_styles","value":null}' $U/auth/admin/content)" 200
 chk "default kembali"               "$(curl -s $U/auth/content | grep -c neon)" 0
 chk "audit mencatat konten"         "$(curl -s -b $OJ $U/auth/admin/audit | grep -c 'admin.content')" 1
+# --- manajemen akun: nonaktifkan, ganti password, audit ---
+ST() { echo "{\"userId\":$1,\"disabled\":$2}"; }
+chk "owner nonaktifkan member"      "$(code -b $OJ $J -d "$(ST 3 true)" $U/auth/admin/user-status)" 200
+chk "sesi member langsung mati"     "$(code -b $MJ $U/history)" 401
+chk "login akun nonaktif ditolak"   "$(code $J -d '{"email":"x@b.co","password":"password123"}' $U/auth/login)" 403
+chk "password salah tetap 401"      "$(code $J -d '{"email":"x@b.co","password":"salah"}' $U/auth/login)" 401
+chk "admin tak boleh nonaktifkan owner" "$(code -b $CJ $J -d "$(ST 1 true)" $U/auth/admin/user-status)" 403
+chk "tak bisa nonaktifkan diri sendiri" "$(code -b $OJ $J -d "$(ST 1 true)" $U/auth/admin/user-status)" 400
+chk "owner aktifkan kembali"        "$(code -b $OJ $J -d "$(ST 3 false)" $U/auth/admin/user-status)" 200
+chk "login setelah diaktifkan"      "$(code -c $MJ $J -d '{"email":"x@b.co","password":"password123"}' $U/auth/login)" 200
+chk "ganti password: current salah" "$(code -b $MJ $J -d '{"current":"salah","next":"passwordbaru1"}' $U/auth/password)" 401
+chk "ganti password: terlalu pendek" "$(code -b $MJ $J -d '{"current":"password123","next":"pendek"}' $U/auth/password)" 400
+chk "ganti password berhasil"       "$(code -b $MJ -c $MJ $J -d '{"current":"password123","next":"passwordbaru1"}' $U/auth/password)" 200
+chk "sesi tetap valid setelah ganti" "$(code -b $MJ $U/history)" 200
+chk "password lama tak berlaku"     "$(code $J -d '{"email":"x@b.co","password":"password123"}' $U/auth/login)" 401
+chk "password baru berlaku"         "$(code $J -d '{"email":"x@b.co","password":"passwordbaru1"}' $U/auth/login)" 200
+chk "audit mencatat nonaktifkan"    "$(curl -s -b $OJ $U/auth/admin/audit | grep -c admin.disable)" 1
+chk "audit mencatat login sukses"   "$(curl -s -b $OJ $U/auth/admin/audit | grep -c user.login)" 1
+chk "audit punya penanda 'more'"    "$(curl -s -b $OJ $U/auth/admin/audit | grep -c '"more":')" 1
+chk "audit paginasi (?before=2)"    "$(curl -s -b $OJ "$U/auth/admin/audit?before=2" | grep -c '"id":2,')" 0
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done
 chk "rate limit login"             "$(code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login)" 429
 rm -rf $T; exit $fail

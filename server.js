@@ -401,8 +401,8 @@ http.createServer(async (req, res) => {
     const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
-      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content'].includes(act.slice(6))) { // peran dicek di pusat
-        const r = await askCentral('/' + act, tok, req.method === 'POST' ? await body(req) : undefined);
+      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status'].includes(act.slice(6))) { // peran dicek di pusat
+        const r = await askCentral('/' + act + u.search, tok, req.method === 'POST' ? await body(req) : undefined); // u.search: kursor audit (?before=)
         if (req.method === 'POST' && r.status === 200) { sessions.clear(); contentCache.at = 0; } // plan/role/konten berubah -> segarkan cache
         return json(res, r.status, r.j);
       }
