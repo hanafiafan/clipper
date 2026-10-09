@@ -68,6 +68,7 @@
   },
   "productName": "Hellens Clipper",
   "dependencies": {
+    "puppeteer-core": "^25.13.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   }

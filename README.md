@@ -161,8 +161,9 @@ Wajib di PATH:
 
 Opsional:
 
-- **Chrome + puppeteer** — hanya untuk badge hook dan sticker teks. Puppeteer
-  dicari di `../backend/node_modules`. Tanpa itu, klip tetap dirender **tanpa badge**.
+- **Google Chrome / Chromium** — hanya untuk badge hook dan sticker teks (dirender lewat
+  `puppeteer-core`, sudah termasuk di `npm install`). Dicari di lokasi umum macOS/Linux;
+  set `PUPPETEER_EXECUTABLE_PATH` bila lokasinya lain. Tanpa Chrome, klip tetap dirender **tanpa badge**.
 - **API key AI** — diisi lewat halaman **Pengaturan** (disimpan di `keys.json`,
   izin 0600) atau lewat environment variable.
 

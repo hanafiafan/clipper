@@ -7,7 +7,6 @@ const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path
 const PORT = process.env.PORT || 3002;
 const MAX_UPLOAD = (+process.env.MAX_UPLOAD_MB || 2048) * 1048576; // batas unggah video (MB)
 [WORK, OUT, LOGOS, MEDIA, DL].forEach(d => fs.mkdirSync(d, { recursive: true }));
-const BACKEND_MODULES = path.join(__dirname, '..', 'backend', 'node_modules'); // reuse sibling puppeteer + Chrome
 
 // Dimensions + formats ported from backend/utils/resolution.js (sama persis)
 const RES = {
@@ -96,7 +95,7 @@ const runOut = (cmd, args) => new Promise((ok, no) => // like run but returns st
 // Render a rounded pill badge (text+emoji) to a transparent PNG via headless Chrome (scripts/badge.js).
 const renderBadge = (outPng, cfg) => new Promise((ok, no) =>
   execFile(process.execPath, [path.join(__dirname, 'scripts', 'badge.js'), outPng, JSON.stringify(cfg)],
-    { env: { ...process.env, NODE_PATH: BACKEND_MODULES }, maxBuffer: 1 << 24 },
+    { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, maxBuffer: 1 << 24 }, // ELECTRON_RUN_AS_NODE: di app terpaket execPath = Electron
     (e, _o, err) => e ? no(new Error('badge render gagal: ' + (err || e.message).slice(-200))) : ok()));
 // Transcribe [s,e] of src to <OUT>/<name>.srt (times relative to clip start); returns false if no speech.
 async function transcribe(src, s, e, name) {

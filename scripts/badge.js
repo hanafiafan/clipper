@@ -1,7 +1,7 @@
 // Render a rounded pill badge (text + emoji) to a tight transparent PNG via headless Chrome.
-// Uses the sibling backend's puppeteer + its downloaded Chrome (same renderer as overlayRenderer.js).
+// Uses puppeteer-core (project dependency) with a system Chrome/Chromium; set PUPPETEER_EXECUTABLE_PATH to override.
 const fs = require('fs'), path = require('path');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const [, , outPath, dataJson] = process.argv;
 const d = JSON.parse(dataJson);
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -18,7 +18,6 @@ ${maxW ? `max-width:${maxW}px;` : ''}white-space:${maxW ? 'normal' : 'nowrap'};w
 // Resolve a Chrome executable: env override, puppeteer's own, or scan its cache.
 function findChrome() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
-  try { const p = puppeteer.executablePath(); if (p && fs.existsSync(p)) return p; } catch {}
   const base = path.join(require('os').homedir(), '.cache', 'puppeteer', 'chrome');
   for (const dir of (fs.existsSync(base) ? fs.readdirSync(base) : [])) {
     for (const sub of ['chrome-mac-arm64', 'chrome-mac-x64', 'chrome-linux64']) {
