@@ -1,6 +1,7 @@
 # Dependencies and packaged builds
 node_modules/
 dist/
+release/
 
 # Runtime data and generated media
 work/
