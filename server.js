@@ -1,5 +1,6 @@
 // Hellens Clipper: upload / YouTube URL -> cut -> vertical clip. Zero npm deps; needs ffmpeg + yt-dlp on PATH.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
+const { chunkTranscript, dedupeClips } = require('./lib/transcript');
 const { execFile } = require('child_process');
 // Writable data root — set KLIP_DATA when packaged (app folder is read-only); defaults to this dir in dev.
 const DATA = process.env.KLIP_DATA || __dirname;
@@ -560,16 +561,20 @@ http.createServer(async (req, res) => {
           if (!p.id) await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
             .catch(() => { throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
           J.step = 'Transkripsi + analisis AI (cari momen viral)…';
-          const txt = await askLLM(AUTO_PROMPT(await fullTranscript(srcId)), p.provider);
           const norm = c => { const segs = (Array.isArray(c.timelines) ? c.timelines : [{ start: c.start, end: c.end }])
             .map(s => ({ start: +s.start, end: +s.end })).filter(s => s.start >= 0 && s.end > s.start);
             return segs.length ? { ...c, segs } : null; };
-          let clips;
-          try { clips = JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1)).map(norm).filter(Boolean); }
-          catch { throw new Error('AI mengembalikan format tak terbaca. Coba lagi atau ganti provider.'); }
+          // Video panjang dianalisis per bagian (tiap bagian ~40k karakter) lalu digabung; video biasa = 1 panggilan.
+          const parts = chunkTranscript(await fullTranscript(srcId));
+          let clips = [];
+          for (let k = 0; k < parts.length; k++) {
+            if (parts.length > 1) J.step = `Analisis AI bagian ${k + 1}/${parts.length}…`;
+            const txt = await askLLM(AUTO_PROMPT(parts[k]), p.provider);
+            try { clips.push(...JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1)).map(norm).filter(Boolean)); }
+            catch { throw new Error('AI mengembalikan format tak terbaca. Coba lagi atau ganti provider.'); }
+          }
           if (!clips.length) throw new Error('AI tidak menemukan momen yang cocok di video ini.');
-          clips.sort((a, b) => (b.score || 0) - (a.score || 0)); // best first
-          clips = clips.slice(0, count);
+          clips = dedupeClips(clips).slice(0, count); // skor tertinggi dulu, tanpa klip yang saling tumpang tindih
           J.total = clips.length;
           for (let i = 0; i < clips.length; i++) { const c = clips[i];
             J.step = `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`;

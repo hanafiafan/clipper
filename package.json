@@ -7,6 +7,7 @@
     "server": "node server.js",
     "central": "node --no-warnings central/server.js",
     "build": "vite build",
+    "test": "node --test test/*.test.js && bash scripts/auth-check.sh",
     "dev": "vite",
     "start": "electron .",
     "dist:mac": "electron-builder --mac",
@@ -29,6 +30,7 @@
       "server.js",
       "index.html",
       "dist/**",
+      "lib/**",
       "scripts/**",
       "fonts/**",
       "brand/**"
