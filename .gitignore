@@ -22,3 +22,6 @@ models/
 # OS and editor files
 .DS_Store
 *.log
+
+# Database server pusat
+central/*.db*
