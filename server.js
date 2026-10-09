@@ -377,6 +377,11 @@ http.createServer(async (req, res) => {
     const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
+      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role'].includes(act.slice(6))) { // peran dicek di pusat
+        const r = await askCentral('/' + act, tok, req.method === 'POST' ? await body(req) : undefined);
+        if (req.method === 'POST' && r.status === 200) sessions.clear(); // plan/role berubah -> segarkan cache
+        return json(res, r.status, r.j);
+      }
       if (req.method === 'GET' && act === 'plans') { const r = await askCentral('/plans'); return json(res, r.status, r.j); }
       if (req.method === 'GET' && act === 'me') { const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
       if (req.method === 'POST' && ['login', 'register', 'logout', 'password'].includes(act)) {

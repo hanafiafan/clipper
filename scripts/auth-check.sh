@@ -31,6 +31,26 @@ chk "free: tagih 10 klip"           "$(cons $MEM 10)" 200
 chk "free: klip ke-11 ditolak 402"  "$(cons $MEM 1)" 402
 chk "refund 1 klip"                 "$(cons $MEM -1)" 200
 chk "setelah refund bisa lagi"      "$(cons $MEM 1)" 200
+chk "member bukan admin"            "$(code -H "authorization: Bearer $MEM" $J -d '{"userId":2,"plan":"pro"}' $CU/admin/plan)" 403
+chk "owner ubah plan jadi pro"      "$(code -H "authorization: Bearer $OWN" $J -d '{"userId":2,"plan":"pro"}' $CU/admin/plan)" 200
+chk "pro: kuota lanjut"             "$(cons $MEM 5)" 200
+chk "plan tidak dikenal ditolak"    "$(code -H "authorization: Bearer $OWN" $J -d '{"userId":2,"plan":"gratis"}' $CU/admin/plan)" 400
+curl -s $J -d '{"email":"m@b.co","password":"password123"}' $U/auth/login -c $CJ >/dev/null
+chk "pro: 1080p boleh (lolos cek plan)" "$(code -b $CJ $J -d '{"id":"aaaaaaaaaaaa","start":0,"end":5,"resolution":"1080p"}' $U/clip | grep -c 403)" 0
+chk "pro: 4k ditolak"               "$(code -b $CJ $J -d '{"id":"aaaaaaaaaaaa","start":0,"end":5,"resolution":"4k"}' $U/clip)" 403
+# --- admin dashboard (lewat proxy lokal, seperti UI) ---
+OJ=$T/ojar; curl -s -c $OJ $J -d '{"email":"a@b.co","password":"password123"}' $U/auth/login >/dev/null
+chk "member ditolak area admin"     "$(code -b $CJ $U/auth/admin/users)" 403
+chk "owner lihat daftar user"       "$(curl -s -b $OJ $U/auth/admin/users | grep -o '"email"' | wc -l | tr -d ' ')" 2
+chk "stats: 2 user"                 "$(curl -s -b $OJ $U/auth/admin/stats | grep -o '"users":2')" '"users":2'
+chk "owner jadikan member admin"    "$(code -b $OJ $J -d '{"userId":2,"role":"admin"}' $U/auth/admin/role)" 200
+curl -s -c $CJ $J -d '{"email":"m@b.co","password":"password123"}' $U/auth/login >/dev/null
+chk "admin boleh lihat user"        "$(code -b $CJ $U/auth/admin/users)" 200
+chk "admin boleh ubah plan"         "$(code -b $CJ $J -d '{"userId":2,"plan":"enterprise"}' $U/auth/admin/plan)" 200
+chk "admin tak boleh ubah role"     "$(code -b $CJ $J -d '{"userId":1,"role":"member"}' $U/auth/admin/role)" 403
+chk "owner tak bisa ubah role sendiri" "$(code -b $OJ $J -d '{"userId":1,"role":"member"}' $U/auth/admin/role)" 400
+chk "role tidak dikenal ditolak"    "$(code -b $OJ $J -d '{"userId":2,"role":"god"}' $U/auth/admin/role)" 400
+chk "audit mencatat perubahan"      "$(curl -s -b $OJ $U/auth/admin/audit | grep -c 'admin.role')" 1
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done
 chk "rate limit login"             "$(code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login)" 429
 rm -rf $T; exit $fail
