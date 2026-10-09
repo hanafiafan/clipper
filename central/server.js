@@ -7,6 +7,7 @@ const db = new DatabaseSync(process.env.CENTRAL_DB || path.join(__dirname, 'cent
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
     pw TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', plan TEXT NOT NULL DEFAULT 'free', created_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT, detail TEXT);
   CREATE TABLE IF NOT EXISTS usage (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, month TEXT NOT NULL,
     clips INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, month));
   CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);`);
@@ -21,6 +22,8 @@ const PLANS = {
   pro:        { name: 'Pro',        clipsPerMonth: 100,  maxResolution: '1080p', clipsPerJob: 6 },
   enterprise: { name: 'Enterprise', clipsPerMonth: null, maxResolution: '4k',    clipsPerJob: 6 },
 };
+const audit = (actor, action, target, detail) => db.prepare('INSERT INTO audit (at,actor,action,target,detail) VALUES (?,?,?,?,?)').run(new Date().toISOString(), actor, action, target ?? null, detail ?? null);
+const ROLES = ['owner', 'admin', 'member'];
 const month = () => new Date().toISOString().slice(0, 7);
 const used = id => db.prepare('SELECT clips FROM usage WHERE user_id = ? AND month = ?').get(id, month())?.clips || 0;
 const pub = u => ({ id: u.id, email: u.email, name: u.name, role: u.role, plan: u.plan, limits: PLANS[u.plan], usage: { month: month(), clips: used(u.id) } });
@@ -58,6 +61,7 @@ http.createServer(async (req, res) => {
       const r = db.prepare('INSERT INTO users (email,name,pw,role,created_at) VALUES (?,?,?,?,?)')
         .run(em, String(name).trim().slice(0, 80), hashPw(String(password)), first ? 'owner' : 'member', new Date().toISOString());
       const u = db.prepare('SELECT * FROM users WHERE id = ?').get(r.lastInsertRowid);
+      audit(em, 'user.register', em, first ? 'owner pertama' : null);
       return json(res, 200, { token: newSession(u.id), user: pub(u) });
     }
     if (req.method === 'POST' && p === '/login') {
@@ -82,6 +86,33 @@ http.createServer(async (req, res) => {
       db.prepare('INSERT INTO usage VALUES (?,?,?) ON CONFLICT(user_id, month) DO UPDATE SET clips = clips + ?').run(u.id, month(), n, n);
       return json(res, 200, { used: now + n });
     }
+    if (p.startsWith('/admin/')) { // seluruh area admin: owner/admin saja
+      if (!['owner', 'admin'].includes(u.role)) return json(res, 403, { error: 'Khusus admin' });
+      if (req.method === 'GET' && p === '/admin/users')
+        return json(res, 200, { users: db.prepare(`SELECT u.id, u.email, u.name, u.role, u.plan, u.created_at, COALESCE(g.clips, 0) AS clips
+          FROM users u LEFT JOIN usage g ON g.user_id = u.id AND g.month = ? ORDER BY u.id`).all(month()) });
+      if (req.method === 'GET' && p === '/admin/stats') {
+        const byPlan = Object.fromEntries(db.prepare('SELECT plan, COUNT(*) n FROM users GROUP BY plan').all().map(r => [r.plan, r.n]));
+        const months = db.prepare('SELECT month, SUM(clips) clips FROM usage GROUP BY month ORDER BY month DESC LIMIT 6').all().reverse();
+        return json(res, 200, { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, byPlan, clipsThisMonth: months.find(m => m.month === month())?.clips || 0, months });
+      }
+      if (req.method === 'GET' && p === '/admin/audit') return json(res, 200, { audit: db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 100').all() });
+      if (req.method === 'POST' && (p === '/admin/plan' || p === '/admin/role')) {
+        const { userId, plan, role } = await body(req), t = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId));
+        if (!t) return json(res, 404, { error: 'user tidak ada' });
+        if (p === '/admin/plan') {
+          if (!(plan in PLANS)) return json(res, 400, { error: 'plan tidak dikenal' });
+          db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, t.id); audit(u.email, 'admin.plan', t.email, `${t.plan} -> ${plan}`);
+        } else {
+          if (u.role !== 'owner') return json(res, 403, { error: 'Hanya owner yang boleh mengubah role' });
+          if (!ROLES.includes(role)) return json(res, 400, { error: 'role tidak dikenal' });
+          if (t.id === u.id) return json(res, 400, { error: 'Tidak bisa mengubah role sendiri (mencegah owner terakhir hilang)' });
+          db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, t.id); audit(u.email, 'admin.role', t.email, `${t.role} -> ${role}`);
+        }
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: 'not found' });
+    }
     if (req.method === 'GET' && p === '/me') return json(res, 200, { user: pub(u) });
     if (req.method === 'POST' && p === '/logout') {
       db.prepare('DELETE FROM sessions WHERE hash = ?').run(sha(req.headers.authorization.replace(/^Bearer /, ''))); return json(res, 200, { ok: true });
@@ -91,6 +122,7 @@ http.createServer(async (req, res) => {
       if (!checkPw(String(current || ''), u.pw)) return json(res, 401, { error: 'Password saat ini salah' });
       if (String(next || '').length < 8) return json(res, 400, { error: 'Password baru minimal 8 karakter' });
       db.prepare('UPDATE users SET pw = ? WHERE id = ?').run(hashPw(String(next)), u.id);
+      audit(u.email, 'user.password', u.email);
       db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id); // paksa login ulang di semua perangkat
       return json(res, 200, { token: newSession(u.id) });
     }
