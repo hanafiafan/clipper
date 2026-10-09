@@ -7,13 +7,23 @@ const db = new DatabaseSync(process.env.CENTRAL_DB || path.join(__dirname, 'cent
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
     pw TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', plan TEXT NOT NULL DEFAULT 'free', created_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS usage (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, month TEXT NOT NULL,
+    clips INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, month));
   CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);`);
 
 const SESSION_MS = 7 * 864e5;
 const sha = t => crypto.createHash('sha256').update(t).digest('hex');
 const hashPw = pw => { const salt = crypto.randomBytes(16); return salt.toString('hex') + ':' + crypto.scryptSync(pw, salt, 64).toString('hex'); };
 const checkPw = (pw, stored) => { const [s, h] = stored.split(':'); return crypto.timingSafeEqual(crypto.scryptSync(pw, Buffer.from(s, 'hex'), 64), Buffer.from(h, 'hex')); };
-const pub = u => ({ id: u.id, email: u.email, name: u.name, role: u.role, plan: u.plan });
+// Definisi plan di kode (bukan DB): harga/limit berubah lewat deploy. null = tanpa batas.
+const PLANS = {
+  free:       { name: 'Free',       clipsPerMonth: 10,   maxResolution: '720p',  clipsPerJob: 3 },
+  pro:        { name: 'Pro',        clipsPerMonth: 100,  maxResolution: '1080p', clipsPerJob: 6 },
+  enterprise: { name: 'Enterprise', clipsPerMonth: null, maxResolution: '4k',    clipsPerJob: 6 },
+};
+const month = () => new Date().toISOString().slice(0, 7);
+const used = id => db.prepare('SELECT clips FROM usage WHERE user_id = ? AND month = ?').get(id, month())?.clips || 0;
+const pub = u => ({ id: u.id, email: u.email, name: u.name, role: u.role, plan: u.plan, limits: PLANS[u.plan], usage: { month: month(), clips: used(u.id) } });
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const body = req => new Promise((ok, no) => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => { try { ok(JSON.parse(s || '{}')); } catch { no(new Error('JSON tidak valid')); } }); });
 
@@ -60,8 +70,18 @@ http.createServer(async (req, res) => {
       if (!ok) { fail(key); return json(res, 401, { error: 'Email atau password salah' }); }
       return json(res, 200, { token: newSession(u.id), user: pub(u) });
     }
+    if (req.method === 'GET' && p === '/plans') return json(res, 200, { plans: PLANS });
     const u = userFor(req);
     if (!u) return json(res, 401, { error: 'Belum login' });
+    if (req.method === 'POST' && p === '/usage/consume') { // tagih n klip ke kuota bulan ini; 402 bila melebihi
+      const n = Math.floor(Number((await body(req)).clips)), cap = PLANS[u.plan].clipsPerMonth;
+      if (!(Math.abs(n) >= 1 && Math.abs(n) <= 50)) return json(res, 400, { error: 'jumlah klip tidak valid' });
+      if (n < 0) { db.prepare('UPDATE usage SET clips = MAX(0, clips + ?) WHERE user_id = ? AND month = ?').run(n, u.id, month()); return json(res, 200, { used: used(u.id) }); } // refund render gagal
+      const now = used(u.id);
+      if (cap !== null && now + n > cap) return json(res, 402, { error: `Kuota ${PLANS[u.plan].name} habis (${now}/${cap} klip bulan ini). Upgrade plan untuk lanjut.` });
+      db.prepare('INSERT INTO usage VALUES (?,?,?) ON CONFLICT(user_id, month) DO UPDATE SET clips = clips + ?').run(u.id, month(), n, n);
+      return json(res, 200, { used: now + n });
+    }
     if (req.method === 'GET' && p === '/me') return json(res, 200, { user: pub(u) });
     if (req.method === 'POST' && p === '/logout') {
       db.prepare('DELETE FROM sessions WHERE hash = ?').run(sha(req.headers.authorization.replace(/^Bearer /, ''))); return json(res, 200, { ok: true });
