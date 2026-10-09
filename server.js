@@ -76,6 +76,8 @@ function buildSpec(aspect, fill, bg, res, focal, motion = true) {
 const MODEL = process.env.WHISPER_MODEL || path.join(__dirname, 'models', 'ggml-base.bin');
 // "auto" tetap aman untuk video multibahasa; set WHISPER_LANGUAGE=id untuk video berbahasa Indonesia agar akurasi naik.
 const WHISPER_LANGUAGE = process.env.WHISPER_LANGUAGE || 'auto';
+// Filter audio sebelum Whisper: buang dengung/desis dan ratakan volume (dipakai semua jalur transkripsi).
+const SPEECH_AF = 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11';
 const FONTSDIR = path.join(__dirname, 'fonts');
 const BOLD_FONT = path.join(FONTSDIR, 'THEBOLDFONT-FREEVERSION.ttf');
 // Caption presets (fonts bundled from the project). ASS force_style; sizes tuned for SRT PlayRes ~288.
@@ -100,7 +102,7 @@ const renderBadge = (outPng, cfg) => new Promise((ok, no) =>
 // Transcribe [s,e] of src to <OUT>/<name>.srt (times relative to clip start); returns false if no speech.
 async function transcribe(src, s, e, name) {
   const wav = path.join(WORK, name + '.wav');
-  await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '16000', '-ac', '1', wav]);
+  await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
   await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', path.join(OUT, name), '-ml', '32', '-sow']);
   fs.unlinkSync(wav);
   return fs.statSync(path.join(OUT, name + '.srt')).size > 0;
@@ -108,7 +110,7 @@ async function transcribe(src, s, e, name) {
 // Per-word timing via whisper (-ml 1 -sow): parse the one-word-per-cue SRT. Returns [{t0,t1,text}] relative to clip.
 async function transcribeWords(src, s, e, name) {
   const wav = path.join(WORK, name + '.w.wav'), out = path.join(OUT, name + '.w');
-  await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11', '-ar', '16000', '-ac', '1', wav]);
+  await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
   await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', out, '-ml', '1', '-sow']);
   fs.unlinkSync(wav);
   const sec = t => { const [h, m, x] = t.replace(',', '.').split(':'); return +h * 3600 + +m * 60 + +x; };
@@ -168,10 +170,10 @@ ${events.join('\n')}`;
 }
 // Full-video transcript as "[sec] text" lines (cached as work/<id>.srt).
 async function fullTranscript(id) {
-  const srt = path.join(WORK, id + '.srt'), wav = path.join(WORK, id + '.wav');
+  const base = id + '.' + WHISPER_LANGUAGE, srt = path.join(WORK, base + '.srt'), wav = path.join(WORK, id + '.wav'); // cache per bahasa
   if (!fs.existsSync(srt)) {
-    await run('ffmpeg', ['-y', '-i', path.join(WORK, id + '.mp4'), '-ar', '16000', '-ac', '1', wav]);
-    await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', path.join(WORK, id)]);
+    await run('ffmpeg', ['-y', '-i', path.join(WORK, id + '.mp4'), '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
+    await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', path.join(WORK, base)]);
     fs.unlinkSync(wav);
   }
   const sec = t => { const [h, m, x] = t.replace(',', '.').split(':'); return Math.round(h * 3600 + m * 60 + +x); };
