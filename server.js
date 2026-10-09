@@ -342,7 +342,8 @@ async function makeClip(p) {
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   try {
-    if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, __dirname, 'index.html'); } // always fresh UI
+    if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
+    if (req.method === 'GET' && u.pathname.startsWith('/assets/')) { res.setHeader('Content-Type', u.pathname.endsWith('.js') ? 'text/javascript' : 'text/css'); return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8)); }
     if (req.method === 'GET' && u.pathname.startsWith('/src/')) return serve(res, WORK, u.pathname.slice(5));
     if (req.method === 'GET' && u.pathname.startsWith('/out/')) return serve(res, OUT, u.pathname.slice(5));
     if (req.method === 'GET' && u.pathname.startsWith('/brand/')) return serve(res, path.join(__dirname, 'brand'), u.pathname.slice(7));
@@ -450,18 +451,19 @@ http.createServer(async (req, res) => {
       const resolution = p.resolution || '1080p', preset = p.preset || 'karaoke';
       const useSpec = p.aspect && RES[resolution] && RES[resolution][p.aspect];
       const mode = p.mode || 'center-crop';
-      if (!/^https?:\/\//.test(p.url || '')) return json(res, 400, { error: 'bad url' });
+      if (!/^https?:\/\//.test(p.url || '') && !/^[a-f0-9]{12}$/.test(p.id || '')) return json(res, 400, { error: 'Masukkan URL YouTube atau unggah video.' });
       if (!(resolution in RES) || !(preset in PRESETS) || (!useSpec && !(mode in FORMATS))) return json(res, 400, { error: 'bad options' });
       if (!availableProviders().length) return json(res, 400, { error: 'Set API key AI (Gemini/OpenAI/…) dulu untuk analisis otomatis' });
       const jobId = newId();
       jobs[jobId] = { status: 'running', step: 'Menyiapkan…', clips: [], total: 0, done: 0 };
       json(res, 200, { jobId });
-      const count = Math.max(3, Math.min(6, +p.count || 6));
+      // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
+      const count = 6;
       (async () => { const J = jobs[jobId];
         try {
-          const srcId = newId();
+          const srcId = p.id || newId();
           J.step = 'Mengunduh video dari YouTube…';
-          await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
+          if (!p.id) await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
             .catch(() => { throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
           J.step = 'Transkripsi + analisis AI (cari momen viral)…';
           const txt = await askLLM(AUTO_PROMPT(await fullTranscript(srcId)), p.provider);
