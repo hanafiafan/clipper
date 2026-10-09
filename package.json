@@ -24,6 +24,7 @@
       "main.js",
       "server.js",
       "index.html",
+      "dist/**",
       "scripts/**",
       "fonts/**",
       "brand/**"
