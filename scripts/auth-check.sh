@@ -51,6 +51,18 @@ chk "admin tak boleh ubah role"     "$(code -b $CJ $J -d '{"userId":1,"role":"me
 chk "owner tak bisa ubah role sendiri" "$(code -b $OJ $J -d '{"userId":1,"role":"member"}' $U/auth/admin/role)" 400
 chk "role tidak dikenal ditolak"    "$(code -b $OJ $J -d '{"userId":2,"role":"god"}' $U/auth/admin/role)" 400
 chk "audit mencatat perubahan"      "$(curl -s -b $OJ $U/auth/admin/audit | grep -c 'admin.role')" 1
+# --- CMS ---
+MJ=$T/mjar; curl -s -c $MJ $J -d '{"email":"x@b.co","name":"X","password":"password123"}' $U/auth/register >/dev/null
+HS='{"key":"hook_styles","value":{"neon":{"label":"Neon","bg":"#00FFAA","color":"#000000","rounded":true}}}'
+chk "konten default terbaca"        "$(curl -s $U/auth/content | grep -c punch)" 1
+chk "member ditolak edit konten"    "$(code -b $MJ $J -d "$HS" $U/auth/admin/content)" 403
+chk "warna tidak valid ditolak"     "$(code -b $OJ $J -d '{"key":"hook_styles","value":{"x":{"bg":"merah","color":"#000000"}}}' $U/auth/admin/content)" 400
+chk "konten tidak dikenal ditolak"  "$(code -b $OJ $J -d '{"key":"lain","value":{}}' $U/auth/admin/content)" 400
+chk "admin simpan gaya hook"        "$(code -b $OJ $J -d "$HS" $U/auth/admin/content)" 200
+chk "perubahan terbaca user"        "$(curl -s $U/auth/content | grep -c neon)" 1
+chk "reset ke default"              "$(code -b $OJ $J -d '{"key":"hook_styles","value":null}' $U/auth/admin/content)" 200
+chk "default kembali"               "$(curl -s $U/auth/content | grep -c neon)" 0
+chk "audit mencatat konten"         "$(curl -s -b $OJ $U/auth/admin/audit | grep -c 'admin.content')" 1
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done
 chk "rate limit login"             "$(code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login)" 429
 rm -rf $T; exit $fail

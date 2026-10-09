@@ -358,6 +358,15 @@ async function userFor(req) {
 }
 const setCookie = (res, tok) => res.setHeader('Set-Cookie', `klip_session=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${tok ? 604800 : 0}`);
 
+// Konten CMS dari pusat (gaya hook, warna highlight caption). Cache 60 dtk; bila pusat mati pakai cache terakhir / bawaan.
+const HOOK_FALLBACK = { punch: { bg: '#FF542B', color: '#171916', rounded: false }, clean: { bg: '#F0F3ED', color: '#171916', rounded: true }, dark: { bg: '#171916', color: '#FFFFFF', rounded: false } };
+let contentCache = { at: 0, v: { hook_styles: HOOK_FALLBACK, caption_presets: {} } };
+async function getContent() {
+  if (Date.now() - contentCache.at < 6e4) return contentCache.v;
+  const r = await askCentral('/content');
+  if (r.status === 200) contentCache = { at: Date.now(), v: r.j.content };
+  return contentCache.v;
+}
 const RES_ORDER = ['360p', '480p', '720p', '1080p', '1440p', '4k'];
 // Tagih n klip ke kuota di pusat (throw bila habis). Cache sesi dibuang agar sisa kuota di UI segar.
 async function charge(tok, n) {
@@ -377,11 +386,12 @@ http.createServer(async (req, res) => {
     const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
-      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role'].includes(act.slice(6))) { // peran dicek di pusat
+      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content'].includes(act.slice(6))) { // peran dicek di pusat
         const r = await askCentral('/' + act, tok, req.method === 'POST' ? await body(req) : undefined);
-        if (req.method === 'POST' && r.status === 200) sessions.clear(); // plan/role berubah -> segarkan cache
+        if (req.method === 'POST' && r.status === 200) { sessions.clear(); contentCache.at = 0; } // plan/role/konten berubah -> segarkan cache
         return json(res, r.status, r.j);
       }
+      if (req.method === 'GET' && act === 'content') { const r = await askCentral('/content'); return json(res, r.status, r.j); }
       if (req.method === 'GET' && act === 'plans') { const r = await askCentral('/plans'); return json(res, r.status, r.j); }
       if (req.method === 'GET' && act === 'me') { const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
       if (req.method === 'POST' && ['login', 'register', 'logout', 'password'].includes(act)) {
@@ -518,7 +528,7 @@ http.createServer(async (req, res) => {
       const count = user.limits.clipsPerJob;
       (async () => { const J = jobs[jobId];
         try {
-          const srcId = p.id || newId();
+          const content = await getContent(), srcId = p.id || newId();
           J.step = 'Mengunduh video dari YouTube…';
           if (!p.id) await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
             .catch(() => { throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
@@ -538,14 +548,14 @@ http.createServer(async (req, res) => {
             J.step = `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`;
             const focal = Number.isFinite(+c.face_x) && Number.isFinite(+c.face_y) ? { x: +c.face_x, y: +c.face_y } : null;
             const hookTxt = String(c.hook || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); // ringkas: ≤4 kata / 24 char
-            const hookStyles = { punch: { bg: '#FF542B', color: '#171916', rounded: false }, clean: { bg: '#F0F3ED', color: '#171916', rounded: true }, dark: { bg: '#171916', color: '#FFFFFF', rounded: false } };
-            const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, ...(hookStyles[p.hookStyle] || hookStyles.punch) } : null;
+            const hookStyles = content.hook_styles, hs = hookStyles[p.hookStyle] || Object.values(hookStyles)[0];
+            const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, bg: hs.bg, color: hs.color, rounded: hs.rounded } : null;
             let clipSrc = srcId, start = c.segs[0].start, end = c.segs[0].end;
             if (c.segs.length > 1) { clipSrc = await concatSegments(srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
             await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
             const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
             const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-              wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor, motion: p.motion !== false, focal, sticker,
+              wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker,
               meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
                 reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
               .catch(async err => { await refund(tok, 1); throw err; });
