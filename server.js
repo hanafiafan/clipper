@@ -180,11 +180,12 @@ async function fullTranscript(id) {
   }).filter(Boolean).join('\n');
 }
 // Providers ported from backend/models/*. OpenAI/Groq/Mistral/Deepseek share the OpenAI chat API.
+// Model default bisa diganti tanpa edit kode: <PROVIDER>_MODEL (mis. CLAUDE_MODEL, GROQ_MODEL).
 const PROVIDERS = {
   gemini:   { env: 'GEMINI_API_KEY',    model: 'gemini-2.5-flash' },
   openai:   { env: 'OPENAI_API_KEY',    model: 'gpt-4o',                    base: 'https://api.openai.com/v1' },
-  claude:   { env: 'ANTHROPIC_API_KEY', model: 'claude-3-5-sonnet-20241022' },
-  groq:     { env: 'GROQ_API_KEY',      model: 'llama-3.1-70b-versatile',   base: 'https://api.groq.com/openai/v1' },
+  claude:   { env: 'ANTHROPIC_API_KEY', model: 'claude-sonnet-5-5' },
+  groq:     { env: 'GROQ_API_KEY',      model: 'llama-3.3-70b-versatile',   base: 'https://api.groq.com/openai/v1' },
   mistral:  { env: 'MISTRAL_API_KEY',   model: 'mistral-large-latest',      base: 'https://api.mistral.ai/v1' },
   deepseek: { env: 'DEEPSEEK_API_KEY',  model: 'deepseek-chat',             base: 'https://api.deepseek.com/v1' },
 };
@@ -220,8 +221,9 @@ async function askLLM(prompt, provider) {
   if (id === 'claude') {
     r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }) });
+      body: JSON.stringify({ model, max_tokens: 8192, messages: [{ role: 'user', content: prompt }] }) });
     j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'Claude error ' + r.status);
+    if (j.stop_reason === 'max_tokens') throw new Error('Jawaban AI terpotong (terlalu panjang). Coba video lebih pendek atau provider lain.');
     return j.content[0].text;
   }
   // OpenAI-compatible (openai, groq, mistral, deepseek)
