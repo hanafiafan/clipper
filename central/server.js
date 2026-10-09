@@ -8,6 +8,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
     pw TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', plan TEXT NOT NULL DEFAULT 'free', created_at TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT, detail TEXT);
+  CREATE TABLE IF NOT EXISTS content (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS usage (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, month TEXT NOT NULL,
     clips INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, month));
   CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);`);
@@ -24,6 +25,44 @@ const PLANS = {
 };
 const audit = (actor, action, target, detail) => db.prepare('INSERT INTO audit (at,actor,action,target,detail) VALUES (?,?,?,?,?)').run(new Date().toISOString(), actor, action, target ?? null, detail ?? null);
 const ROLES = ['owner', 'admin', 'member'];
+// --- CMS: konten yang bisa diedit admin tanpa deploy. Default di kode; override disimpan di tabel content. ---
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const CONTENT = {
+  hook_styles: { // gaya badge hook di video: id -> {label,bg,color,rounded}
+    default: { punch: { label: 'Punch', bg: '#FF542B', color: '#171916', rounded: false }, clean: { label: 'Clean', bg: '#F0F3ED', color: '#171916', rounded: true }, dark: { label: 'Dark', bg: '#171916', color: '#FFFFFF', rounded: false } },
+    clean(v) {
+      const e = Object.entries(v || {});
+      if (!e.length || e.length > 10) throw new Error('Minimal 1, maksimal 10 gaya hook');
+      return Object.fromEntries(e.map(([id, x]) => {
+        if (!/^[a-z0-9-]{1,20}$/.test(id)) throw new Error('ID gaya hook: huruf kecil/angka/-, maks 20');
+        if (!HEX.test(x?.bg) || !HEX.test(x?.color)) throw new Error(`Warna gaya "${id}" harus format #RRGGBB`);
+        return [id, { label: String(x.label || id).trim().slice(0, 30), bg: x.bg, color: x.color, rounded: !!x.rounded }];
+      }));
+    } },
+  caption_presets: { // warna highlight kata aktif per preset caption
+    default: { karaoke: { hl: '#00FF66' }, beasty: { hl: '#FFB800' }, simple: { hl: '#FFD400' }, impact: { hl: '#FF542B' }, clean: { hl: '#FF542B' }, boxed: { hl: '#FF542B' } },
+    clean(v) {
+      return Object.fromEntries(Object.keys(this.default).map(id => {
+        if (!HEX.test(v?.[id]?.hl)) throw new Error(`Warna highlight "${id}" harus format #RRGGBB`);
+        return [id, { hl: v[id].hl }];
+      }));
+    } },
+  plan_copy: { // teks tampilan kartu plan (limit sebenarnya ada di PLANS)
+    default: { free: { price: 'Gratis', tagline: 'Untuk mencoba', features: ['Caption otomatis', 'Saran momen AI'] },
+               pro: { price: 'Hubungi admin', tagline: 'Untuk kreator aktif', features: ['Kuota lebih besar', 'Resolusi hingga 1080p'] },
+               enterprise: { price: 'Hubungi kami', tagline: 'Untuk tim & agensi', features: ['Tanpa batas klip', 'Resolusi hingga 4K', 'Dukungan prioritas'] } },
+    clean(v) {
+      return Object.fromEntries(Object.keys(PLANS).map(id => {
+        const x = v?.[id], f = Array.isArray(x?.features) ? x.features.map(t => String(t).trim().slice(0, 80)).filter(Boolean) : null;
+        if (!f || f.length > 8) throw new Error(`Fitur plan "${id}": 0-8 baris teks`);
+        return [id, { price: String(x.price || '').trim().slice(0, 40), tagline: String(x.tagline || '').trim().slice(0, 60), features: f }];
+      }));
+    } },
+};
+const getContent = () => Object.fromEntries(Object.entries(CONTENT).map(([k, c]) => {
+  const row = db.prepare('SELECT value FROM content WHERE key = ?').get(k);
+  return [k, row ? JSON.parse(row.value) : c.default];
+}));
 const month = () => new Date().toISOString().slice(0, 7);
 const used = id => db.prepare('SELECT clips FROM usage WHERE user_id = ? AND month = ?').get(id, month())?.clips || 0;
 const pub = u => ({ id: u.id, email: u.email, name: u.name, role: u.role, plan: u.plan, limits: PLANS[u.plan], usage: { month: month(), clips: used(u.id) } });
@@ -74,6 +113,7 @@ http.createServer(async (req, res) => {
       if (!ok) { fail(key); return json(res, 401, { error: 'Email atau password salah' }); }
       return json(res, 200, { token: newSession(u.id), user: pub(u) });
     }
+    if (req.method === 'GET' && p === '/content') return json(res, 200, { content: getContent() });
     if (req.method === 'GET' && p === '/plans') return json(res, 200, { plans: PLANS });
     const u = userFor(req);
     if (!u) return json(res, 401, { error: 'Belum login' });
@@ -97,6 +137,16 @@ http.createServer(async (req, res) => {
         return json(res, 200, { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, byPlan, clipsThisMonth: months.find(m => m.month === month())?.clips || 0, months });
       }
       if (req.method === 'GET' && p === '/admin/audit') return json(res, 200, { audit: db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 100').all() });
+      if (req.method === 'POST' && p === '/admin/content') { // value null = kembalikan ke default
+        const { key, value } = await body(req), c = CONTENT[key];
+        if (!c) return json(res, 400, { error: 'konten tidak dikenal' });
+        if (value === null) db.prepare('DELETE FROM content WHERE key = ?').run(key);
+        else { let clean; try { clean = c.clean(value); } catch (e) { return json(res, 400, { error: e.message }); }
+          db.prepare('INSERT INTO content VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by')
+            .run(key, JSON.stringify(clean), new Date().toISOString(), u.email); }
+        audit(u.email, value === null ? 'admin.content.reset' : 'admin.content', key);
+        return json(res, 200, { content: getContent() });
+      }
       if (req.method === 'POST' && (p === '/admin/plan' || p === '/admin/role')) {
         const { userId, plan, role } = await body(req), t = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId));
         if (!t) return json(res, 404, { error: 'user tidak ada' });
