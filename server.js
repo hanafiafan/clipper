@@ -358,6 +358,14 @@ async function userFor(req) {
 }
 const setCookie = (res, tok) => res.setHeader('Set-Cookie', `klip_session=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${tok ? 604800 : 0}`);
 
+const RES_ORDER = ['360p', '480p', '720p', '1080p', '1440p', '4k'];
+// Tagih n klip ke kuota di pusat (throw bila habis). Cache sesi dibuang agar sisa kuota di UI segar.
+async function charge(tok, n) {
+  const r = await askCentral('/usage/consume', tok, { clips: n }); sessions.delete(tok);
+  if (r.status !== 200) throw Object.assign(new Error(r.j.error || 'Gagal memeriksa kuota'), { code: r.status === 402 ? 402 : 503 });
+}
+const refund = (tok, n) => askCentral('/usage/consume', tok, { clips: -n }).then(() => sessions.delete(tok));
+const resAllowed = (user, res) => RES_ORDER.indexOf(res) <= RES_ORDER.indexOf(user.limits.maxResolution);
 
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
@@ -369,6 +377,7 @@ http.createServer(async (req, res) => {
     const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
+      if (req.method === 'GET' && act === 'plans') { const r = await askCentral('/plans'); return json(res, r.status, r.j); }
       if (req.method === 'GET' && act === 'me') { const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
       if (req.method === 'POST' && ['login', 'register', 'logout', 'password'].includes(act)) {
         const r = await askCentral('/' + act, tok, await body(req));
@@ -478,10 +487,14 @@ http.createServer(async (req, res) => {
       const mode = p.mode || 'center-crop';
       const s = Number(p.start), e = Number(p.end);
       if (!/^[a-f0-9]{12}$/.test(p.id) || !(s >= 0) || !(e > s) || !(resolution in RES) || !(preset in PRESETS) || (!useSpec && !(mode in FORMATS))) return json(res, 400, { error: 'bad input' });
-      const rec = await makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
-        wordByWord: !!p.wordByWord, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor,
-        motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal });
-      return json(res, 200, rec);
+      if (!resAllowed(user, resolution)) return json(res, 403, { error: `Resolusi ${resolution} tidak tersedia di plan ${user.limits.name}.` });
+      try { await charge(tok, 1); } catch (e2) { return json(res, e2.code, { error: e2.message }); }
+      try {
+        const rec = await makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
+          wordByWord: !!p.wordByWord, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor,
+          motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal });
+        return json(res, 200, rec);
+      } catch (err) { await refund(tok, 1); throw err; }
     }
     // --- Auto-pilot: 1 URL -> beberapa short ber-grade, siap posting ---
     if (req.method === 'POST' && u.pathname === '/auto') {
@@ -491,12 +504,13 @@ http.createServer(async (req, res) => {
       const mode = p.mode || 'center-crop';
       if (!/^https?:\/\//.test(p.url || '') && !/^[a-f0-9]{12}$/.test(p.id || '')) return json(res, 400, { error: 'Masukkan URL YouTube atau unggah video.' });
       if (!(resolution in RES) || !(preset in PRESETS) || (!useSpec && !(mode in FORMATS))) return json(res, 400, { error: 'bad options' });
+      if (!resAllowed(user, resolution)) return json(res, 403, { error: `Resolusi ${resolution} tidak tersedia di plan ${user.limits.name}.` });
       if (!availableProviders().length) return json(res, 400, { error: 'Set API key AI (Gemini/OpenAI/…) dulu untuk analisis otomatis' });
       const jobId = newId();
       jobs[jobId] = { status: 'running', step: 'Menyiapkan…', clips: [], total: 0, done: 0 };
       json(res, 200, { jobId });
       // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
-      const count = 6;
+      const count = user.limits.clipsPerJob;
       (async () => { const J = jobs[jobId];
         try {
           const srcId = p.id || newId();
@@ -523,11 +537,13 @@ http.createServer(async (req, res) => {
             const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, ...(hookStyles[p.hookStyle] || hookStyles.punch) } : null;
             let clipSrc = srcId, start = c.segs[0].start, end = c.segs[0].end;
             if (c.segs.length > 1) { clipSrc = await concatSegments(srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
+            await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
             const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
             const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
               wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor, motion: p.motion !== false, focal, sticker,
               meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
-                reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } });
+                reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
+              .catch(async err => { await refund(tok, 1); throw err; });
             J.clips.push(rec); J.done = i + 1;
           }
           J.step = 'Selesai'; J.status = 'done';

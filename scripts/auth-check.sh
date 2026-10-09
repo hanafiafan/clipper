@@ -21,6 +21,16 @@ chk "token tidak bocor ke browser" "$(curl -s $J -d '{"email":"a@b.co","password
 chk "Origin asing ditolak"         "$(code -H 'Origin: https://evil.com' -b $CJ $U/history)" 403
 chk "logout"                       "$(code -b $CJ $J -d '{}' $U/auth/logout)" 200
 chk "sesi mati setelah logout"     "$(code -b $CJ $U/history)" 401
+# --- plan & kuota (langsung ke pusat) ---
+CU=http://127.0.0.1:4555; tk() { grep -o '"token":"[a-f0-9]*"' | cut -d'"' -f4; }
+OWN=$(curl -s $J -d '{"email":"a@b.co","password":"password123"}' $CU/login | tk)   # owner
+MEM=$(curl -s $J -d '{"email":"m@b.co","password":"password123"}' $CU/login | tk)   # member, plan free
+cons() { curl -s -m 5 -o /dev/null -w '%{http_code}' -H "authorization: Bearer $1" $J -d "{\"clips\":$2}" $CU/usage/consume; }
+chk "plans publik"                  "$(curl -s $CU/plans | grep -c enterprise)" 1
+chk "free: tagih 10 klip"           "$(cons $MEM 10)" 200
+chk "free: klip ke-11 ditolak 402"  "$(cons $MEM 1)" 402
+chk "refund 1 klip"                 "$(cons $MEM -1)" 200
+chk "setelah refund bisa lagi"      "$(cons $MEM 1)" 200
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done
 chk "rate limit login"             "$(code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login)" 429
 rm -rf $T; exit $fail
