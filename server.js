@@ -340,12 +340,46 @@ async function makeClip(p) {
   return rec;
 }
 
+// --- Auth: akun/plan/role dipegang server pusat (central/server.js); media & render tetap lokal. ---
+const CENTRAL = process.env.CENTRAL_URL || 'http://127.0.0.1:4000';
+const cookieTok = req => /(?:^|; )klip_session=([a-f0-9]{64})/.exec(req.headers.cookie || '')?.[1];
+const askCentral = async (p, tok, payload) => {
+  const r = await fetch(CENTRAL + p, { method: payload ? 'POST' : 'GET', headers: { authorization: 'Bearer ' + (tok || ''), 'content-type': 'application/json' },
+    body: payload ? JSON.stringify(payload) : undefined, signal: AbortSignal.timeout(8000) }).catch(() => null);
+  return r ? { status: r.status, j: await r.json().catch(() => ({})) } : { status: 503, j: { error: 'Server pusat tidak terjangkau (' + CENTRAL + ')' } };
+};
+const sessions = new Map(); // token -> {user, at}; cache 30 dtk supaya tiap request tidak memukul pusat
+async function userFor(req) {
+  const tok = cookieTok(req); if (!tok) return null;
+  const c = sessions.get(tok); if (c && Date.now() - c.at < 3e4) return c.user;
+  const r = await askCentral('/me', tok);
+  if (r.status !== 200) { sessions.delete(tok); return null; }
+  sessions.set(tok, { user: r.j.user, at: Date.now() }); return r.j.user;
+}
+const setCookie = (res, tok) => res.setHeader('Set-Cookie', `klip_session=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${tok ? 604800 : 0}`);
+
+
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   // Blokir CSRF / DNS rebinding: hanya Host & Origin localhost yang boleh.
   const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
+    const tok = cookieTok(req);
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    if (u.pathname.startsWith('/auth/')) {
+      const act = u.pathname.slice(6);
+      if (req.method === 'GET' && act === 'me') { const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
+      if (req.method === 'POST' && ['login', 'register', 'logout', 'password'].includes(act)) {
+        const r = await askCentral('/' + act, tok, await body(req));
+        if (act === 'logout') { sessions.delete(tok); setCookie(res, ''); return json(res, 200, { ok: true }); }
+        if (r.status === 200) { sessions.delete(tok); setCookie(res, r.j.token); delete r.j.token; }
+        return json(res, r.status, r.j);
+      }
+      return json(res, 404, { error: 'not found' });
+    }
+    const user = await userFor(req);
+    if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) { res.setHeader('Content-Type', u.pathname.endsWith('.js') ? 'text/javascript' : 'text/css'); return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8)); }
     if (req.method === 'GET' && u.pathname.startsWith('/src/')) return serve(res, WORK, u.pathname.slice(5));
