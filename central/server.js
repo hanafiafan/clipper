@@ -13,6 +13,8 @@ db.exec(`
     clips INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, month));
   CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);`);
 
+if (!db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'disabled')) db.exec('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0');
+
 const SESSION_MS = 7 * 864e5;
 const sha = t => crypto.createHash('sha256').update(t).digest('hex');
 const hashPw = pw => { const salt = crypto.randomBytes(16); return salt.toString('hex') + ':' + crypto.scryptSync(pw, salt, 64).toString('hex'); };
@@ -78,7 +80,7 @@ function userFor(req) { // token dikirim sebagai "Authorization: Bearer <token>"
   const t = (req.headers.authorization || '').replace(/^Bearer /, '');
   if (!t) return null;
   db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now());
-  return db.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ?').get(sha(t)) || null;
+  return db.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ? AND u.disabled = 0').get(sha(t)) || null;
 }
 
 // ponytail: rate limit in-memory per IP+email; pindah ke tabel kalau pusat di-scale ke banyak proses.
@@ -106,11 +108,13 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/login') {
       const { email, password } = await body(req);
       const em = String(email || '').trim().toLowerCase(), key = req.socket.remoteAddress + '|' + em;
-      if (blocked(key)) return json(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' });
+      if (blocked(key)) { audit(em, 'user.login.blocked', em, req.socket.remoteAddress); return json(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' }); }
       const u = db.prepare('SELECT * FROM users WHERE email = ?').get(em);
       // hash dummy bila user tak ada, supaya waktu respons tidak membocorkan email terdaftar
       const ok = u ? checkPw(String(password || ''), u.pw) : (checkPw('x', hashPw('y')), false);
       if (!ok) { fail(key); return json(res, 401, { error: 'Email atau password salah' }); }
+      if (u.disabled) return json(res, 403, { error: 'Akun dinonaktifkan. Hubungi admin.' }); // dicek setelah password benar agar tak membocorkan email
+      audit(em, 'user.login', em);
       return json(res, 200, { token: newSession(u.id), user: pub(u) });
     }
     if (req.method === 'GET' && p === '/content') return json(res, 200, { content: getContent() });
@@ -129,14 +133,18 @@ http.createServer(async (req, res) => {
     if (p.startsWith('/admin/')) { // seluruh area admin: owner/admin saja
       if (!['owner', 'admin'].includes(u.role)) return json(res, 403, { error: 'Khusus admin' });
       if (req.method === 'GET' && p === '/admin/users')
-        return json(res, 200, { users: db.prepare(`SELECT u.id, u.email, u.name, u.role, u.plan, u.created_at, COALESCE(g.clips, 0) AS clips
+        return json(res, 200, { users: db.prepare(`SELECT u.id, u.email, u.name, u.role, u.plan, u.disabled, u.created_at, COALESCE(g.clips, 0) AS clips
           FROM users u LEFT JOIN usage g ON g.user_id = u.id AND g.month = ? ORDER BY u.id`).all(month()) });
       if (req.method === 'GET' && p === '/admin/stats') {
         const byPlan = Object.fromEntries(db.prepare('SELECT plan, COUNT(*) n FROM users GROUP BY plan').all().map(r => [r.plan, r.n]));
         const months = db.prepare('SELECT month, SUM(clips) clips FROM usage GROUP BY month ORDER BY month DESC LIMIT 6').all().reverse();
         return json(res, 200, { users: db.prepare('SELECT COUNT(*) n FROM users').get().n, byPlan, clipsThisMonth: months.find(m => m.month === month())?.clips || 0, months });
       }
-      if (req.method === 'GET' && p === '/admin/audit') return json(res, 200, { audit: db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 100').all() });
+      if (req.method === 'GET' && p === '/admin/audit') { // kursor: ?before=<id terkecil yang sudah dimuat>; 50 baris per halaman
+        const before = Number(new URL(req.url, 'http://x').searchParams.get('before')) || Number.MAX_SAFE_INTEGER;
+        const rows = db.prepare('SELECT * FROM audit WHERE id < ? ORDER BY id DESC LIMIT 51').all(before);
+        return json(res, 200, { audit: rows.slice(0, 50), more: rows.length > 50 });
+      }
       if (req.method === 'POST' && p === '/admin/content') { // value null = kembalikan ke default
         const { key, value } = await body(req), c = CONTENT[key];
         if (!c) return json(res, 400, { error: 'konten tidak dikenal' });
@@ -146,6 +154,16 @@ http.createServer(async (req, res) => {
             .run(key, JSON.stringify(clean), new Date().toISOString(), u.email); }
         audit(u.email, value === null ? 'admin.content.reset' : 'admin.content', key);
         return json(res, 200, { content: getContent() });
+      }
+      if (req.method === 'POST' && p === '/admin/user-status') { // nonaktifkan / aktifkan akun
+        const { userId, disabled } = await body(req), t = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId));
+        if (!t) return json(res, 404, { error: 'user tidak ada' });
+        if (t.id === u.id) return json(res, 400, { error: 'Tidak bisa menonaktifkan akun sendiri' });
+        if (t.role === 'owner' && u.role !== 'owner') return json(res, 403, { error: 'Hanya owner yang boleh mengubah status owner' });
+        db.prepare('UPDATE users SET disabled = ? WHERE id = ?').run(disabled ? 1 : 0, t.id);
+        if (disabled) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(t.id); // keluarkan dari semua perangkat
+        audit(u.email, disabled ? 'admin.disable' : 'admin.enable', t.email);
+        return json(res, 200, { ok: true });
       }
       if (req.method === 'POST' && (p === '/admin/plan' || p === '/admin/role')) {
         const { userId, plan, role } = await body(req), t = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId));
