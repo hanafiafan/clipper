@@ -317,10 +317,11 @@ async function makeClip(p) {
     const en = sticker.duration > 0 ? `:enable='between(t,0,${+sticker.duration})'` : ''; // show hook only first N seconds
     if (stickerText) {
       const png = path.join(OUT, base + '.stk.png');
-      await renderBadge(png, { text: sticker.text.trim(), color: sticker.color || '#FFFFFF', bg: sticker.bg || '#FF3B30',
-        size: Math.round(h * ((sticker.size ?? 5) / 100)), rounded: sticker.rounded !== false, fontFile: BOLD_FONT, maxW: w });
-      inputs.push('-i', png); const idx = nIn++;
-      steps.push(`[${idx}:v]format=rgba[stk];${label}[stk]overlay=(main_w*${sx}/100)-(overlay_w/2):(main_h*${sy}/100)-(overlay_h/2):format=auto${en}[vk]`); label = '[vk]';
+      // badge butuh Chrome + puppeteer; kalau tidak ada, render klip tanpa badge alih-alih gagal total.
+      const badgeOk = await renderBadge(png, { text: sticker.text.trim(), color: sticker.color || '#FFFFFF', bg: sticker.bg || '#FF3B30',
+        size: Math.round(h * ((sticker.size ?? 5) / 100)), rounded: sticker.rounded !== false, fontFile: BOLD_FONT, maxW: w }).then(() => true, () => false);
+      if (badgeOk) { inputs.push('-i', png); const idx = nIn++;
+        steps.push(`[${idx}:v]format=rgba[stk];${label}[stk]overlay=(main_w*${sx}/100)-(overlay_w/2):(main_h*${sy}/100)-(overlay_h/2):format=auto${en}[vk]`); label = '[vk]'; }
     } else {
       const sc = Math.round(w * ((sticker.scale ?? 20) / 100)), gif = sticker.ext === 'gif';
       if (gif) inputs.push('-ignore_loop', '0');
