@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const DATA = process.env.KLIP_DATA || __dirname;
 const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path.join(DATA, 'logos'), MEDIA = path.join(DATA, 'media'), DL = path.join(DATA, 'downloads');
 const PORT = process.env.PORT || 3002;
+const MAX_UPLOAD = (+process.env.MAX_UPLOAD_MB || 2048) * 1048576; // batas unggah video (MB)
 [WORK, OUT, LOGOS, MEDIA, DL].forEach(d => fs.mkdirSync(d, { recursive: true }));
 const BACKEND_MODULES = path.join(__dirname, '..', 'backend', 'node_modules'); // reuse sibling puppeteer + Chrome
 
@@ -438,7 +439,20 @@ http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && u.pathname === '/upload') { // raw body, no multipart
-      const id = newId(); await new Promise((ok, no) => req.pipe(fs.createWriteStream(path.join(WORK, id + '.mp4'))).on('finish', ok).on('error', no));
+      const id = newId(), f = path.join(WORK, id + '.mp4'), tooBig = { error: `File terlalu besar (maks ${MAX_UPLOAD / 1048576} MB).` };
+      if (+req.headers['content-length'] > MAX_UPLOAD) return json(res, 413, tooBig);
+      let n = 0, over = false; // body tanpa Content-Length (chunked) dihitung sambil mengalir
+      await new Promise((ok, no) => {
+        const w = fs.createWriteStream(f);
+        w.on('finish', ok).on('error', no);
+        req.on('data', c => {
+          if (over) return;
+          if ((n += c.length) > MAX_UPLOAD) { over = true; w.end(); return; }
+          if (!w.write(c)) { req.pause(); w.once('drain', () => req.resume()); } // hormati backpressure disk
+        });
+        req.on('end', () => over || w.end());
+      });
+      if (over) { fs.rmSync(f, { force: true }); res.setHeader('Connection', 'close'); res.on('finish', () => req.destroy()); return json(res, 413, tooBig); }
       return json(res, 200, { id });
     }
     if (req.method === 'POST' && u.pathname === '/yt') {
