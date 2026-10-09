@@ -14,3 +14,5 @@ aside{padding:18px 10px}.brand{padding:0 10px 20px}.brand b{font-size:13px}.side
 .historyPanel{padding:20px}.historyPanel .panelHead{padding:0 0 12px}.clipActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.clipActions button{padding:6px 10px;border-radius:8px;border:1px solid #333;background:#1c1c1c;color:#eee}.clipActions button:focus-visible,.clipActions a:focus-visible{outline:2px solid #ff6b3d}.desc{margin:0;color:#bbb;font-size:13px}
 
 .settings+.settings{margin-top:16px}.pwForm{display:flex;flex-direction:column;gap:12px;max-width:380px}.pwForm label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bbb}.pwForm input{padding:9px 11px;border-radius:8px;border:1px solid #333;background:#111;color:#f5f5f5}.pwForm input:focus-visible{outline:2px solid #ff6b3d}.pwForm p{margin:0;min-height:1em;font-size:13px}.pwForm .ok{color:#7fd99a}.adminPage tr.off td{opacity:.55}.adminPage tr.off td:last-child{opacity:1}
+
+.dlForm{max-width:520px}.pwForm select{padding:9px 11px;border-radius:8px;border:1px solid #333;background:#111;color:#f5f5f5}.pwForm a{color:#ff8a63}
