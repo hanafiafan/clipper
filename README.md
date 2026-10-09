@@ -35,9 +35,9 @@ Buka http://localhost:3002 dan **daftar**. Pengguna pertama yang mendaftar
 otomatis menjadi **owner**; berikutnya **member**. Lalu buka **Pengaturan**
 dan isi minimal satu API key AI.
 
-> `npm run dev` (Vite) hanya menyajikan UI tanpa proxy ke API, jadi alur
-> login dan pembuatan klip tidak jalan di sana. Pakai `npm run build` lalu
-> `node server.js`.
+> Mengembangkan UI? Jalankan pusat + `node server.js`, lalu `npm run dev`
+> (http://localhost:5173, HMR). Semua rute API diteruskan ke app lokal di
+> `127.0.0.1:3002`; ubah dengan `KLIP_API=http://127.0.0.1:PORT`.
 
 ### ⚡ Auto-pilot (1 link → beberapa short)
 
