@@ -31,7 +31,7 @@ npm run central    # terminal 1: server pusat di http://127.0.0.1:4000
 node server.js     # terminal 2: app lokal di http://localhost:3002
 ```
 
-Buka http://localhost:3002 dan **daftar**. Pengguna pertama yang mendaftar
+Buka http://localhost:3002 dan **daftar** (password bisa diganti di **Pengaturan → Akun**). Pengguna pertama yang mendaftar
 otomatis menjadi **owner**; berikutnya **member**. Lalu buka **Pengaturan**
 dan isi minimal satu API key AI.
 
@@ -75,8 +75,10 @@ Pill di header menampilkan pemakaian, dan opsi resolusi di atas plan terkunci.
 ### Dashboard admin (tombol **Admin** untuk owner/admin)
 
 - Statistik: total user, klip bulan ini, user per plan, pemakaian 6 bulan.
-- Tabel user: ubah plan (admin+) dan role (owner saja).
-- **Audit log**: pendaftaran, ganti password, perubahan plan/role/konten.
+- Tabel user: ubah plan (admin+) dan role (owner saja); **nonaktifkan / aktifkan** akun
+  (user langsung keluar dari semua perangkat; owner tidak bisa dinonaktifkan oleh admin).
+- **Audit log** (50 baris per halaman, "Muat lebih banyak"): pendaftaran, login, login diblokir,
+  ganti password, perubahan plan/role/status/konten.
 
 ### CMS (tab **CMS** di dashboard admin)
 
@@ -135,7 +137,7 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 
 | Fitur | Keterangan |
 |---|---|
-| YT Downloader | unduh video penuh (pilih kualitas) atau audio MP3 (endpoint `/download`) |
+| YT Downloader | halaman **Downloader**: unduh video penuh (pilih kualitas) atau audio MP3 |
 | Rasio | 9:16 crop/blur, 3:4, 1:1 crop/blur, 16:9, asli |
 | Resolusi | 360p–4k (dibatasi plan) |
 | Blur bg | motion (ikut video) / statis (frame beku) |
@@ -146,7 +148,7 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 | Logo & sticker | overlay PNG/GIF (endpoint `/logos`, `/media`) |
 | AI | saran momen: Gemini, OpenAI, Claude, Groq, Mistral, Deepseek |
 
-Catatan: logo, sticker gambar, dan YT downloader masih berupa endpoint server;
+Catatan: logo dan sticker gambar masih berupa endpoint server (`/logos`, `/media`);
 belum ada layar di UI baru.
 
 ## Dependency
@@ -196,12 +198,15 @@ Opsional:
 ## Pengujian
 
 ```bash
-bash scripts/auth-check.sh
+npm test                       # tes unit + smoke test akun (di bawah)
+node --test test/*.test.js     # hanya tes unit (pemecah transkrip, dedupe klip)
+bash scripts/auth-check.sh     # hanya smoke test akun
 ```
 
-Menjalankan pusat + app lokal di port dan database sementara, lalu menguji
-login, role, kuota, refund, batas resolusi, API admin, audit log, CMS, dan rate
-limit (45 pemeriksaan). Tidak butuh ffmpeg/yt-dlp/API key AI.
+`auth-check.sh` menjalankan pusat + app lokal di port dan database sementara, lalu
+menguji login, role, kuota, refund, batas resolusi, API admin, nonaktifkan user,
+ganti password, audit log (termasuk paginasi), CMS, dan rate limit (63 pemeriksaan).
+Tidak butuh ffmpeg/yt-dlp/API key AI.
 
 ## Batasan
 
@@ -209,13 +214,13 @@ limit (45 pemeriksaan). Tidak butuh ffmpeg/yt-dlp/API key AI.
   komputernya bisa melewati penagihan. Menutupnya butuh langkah analisis AI
   dijalankan di pusat.
 - Belum ada pembayaran: plan diubah admin. Belum ada verifikasi email, reset
-  password lewat email, SSO, atau menonaktifkan user.
+  password lewat email, atau SSO.
 - Riwayat (`history.json`) milik instalasi, bukan akun: semua user di komputer
   yang sama melihat klip yang sama. Penyimpanan JSON naif — aman untuk pemakaian
   lokal ringan.
 - Sumber video di `work/` dihapus setelah `WORK_TTL_DAYS`, jadi klip lama tidak
   bisa dirender ulang dari sumbernya.
-- Transkrip seluruh video dikirim sekali ke AI; video sangat panjang bisa
-  melebihi batas konteks.
+- Video panjang dianalisis per bagian (~40 ribu karakter) lalu digabung; bagian-bagian
+  itu memakai beberapa panggilan AI, jadi biayanya naik sebanding panjang video.
 - Caption butuh model Whisper yang jelas; untuk audio berisik pakai model lebih besar.
 - Mode blur statis & face-track: dimensi tepat untuk semua rasio kecuali "Asli" (nominal).
