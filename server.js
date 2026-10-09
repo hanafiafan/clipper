@@ -469,7 +469,7 @@ http.createServer(async (req, res) => {
       const { provider, key } = await body(req);
       if (!(provider in PROVIDERS)) return json(res, 400, { error: 'provider tidak dikenal' });
       if (key && String(key).trim()) apiKeys[provider] = String(key).trim(); else delete apiKeys[provider];
-      try { fs.writeFileSync(KEYS_FILE, JSON.stringify(apiKeys, null, 2)); } catch (e) { return json(res, 500, { error: e.message }); }
+      try { fs.writeFileSync(KEYS_FILE, JSON.stringify(apiKeys, null, 2), { mode: 0o600 }); fs.chmodSync(KEYS_FILE, 0o600); } catch (e) { return json(res, 500, { error: e.message }); }
       return json(res, 200, { set: availableProviders() });
     }
     if (req.method === 'POST' && u.pathname === '/keys/test') { // verify a key against the provider
