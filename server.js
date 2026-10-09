@@ -251,6 +251,16 @@ const serve = (res, dir, name) => { // basename blocks ../ traversal
 };
 
 const jobs = {}; // in-memory auto-pilot jobs. ponytail: fine for single local user; use a store if multi-user.
+// Retensi: work/ menampung video sumber + file antara dan tak pernah dibersihkan (bisa GB). Hapus yang lebih tua dari
+// WORK_TTL_DAYS (default 7) tiap jam, dan buang job selesai >1 jam dari memori. Klip hasil di out/ tidak disentuh.
+// ponytail: berdasar umur file saja; klip lama tak bisa dirender ulang dari sumber yang sudah dihapus.
+const WORK_TTL = (+process.env.WORK_TTL_DAYS || 7) * 864e5;
+function cleanup() {
+  const cut = Date.now() - WORK_TTL;
+  for (const f of fs.readdirSync(WORK)) { try { const p = path.join(WORK, f); if (fs.statSync(p).mtimeMs < cut) fs.unlinkSync(p); } catch {} }
+  for (const id in jobs) if (jobs[id].status !== 'running' && Date.now() - jobs[id].at > 36e5) delete jobs[id];
+}
+cleanup(); setInterval(cleanup, 36e5).unref();
 const scoreGrade = s => s == null ? null : s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 55 ? 'C' : 'D';
 const AUTO_PROMPT = t => `Kamu editor short-form viral (gaya Opus Clip / Klipper). Dari transkrip ber-timestamp (detik) di bawah, pilih 3-6 momen paling berpotensi viral sebagai klip mandiri (hook kuat di 3 detik awal, utuh, bisa dipahami tanpa konteks), masing-masing 15-60 detik, mulai & berakhir di batas kalimat.
 Untuk tiap klip hasilkan paket siap-posting:
@@ -563,8 +573,8 @@ http.createServer(async (req, res) => {
               .catch(async err => { await refund(tok, 1); throw err; });
             J.clips.push(rec); J.done = i + 1;
           }
-          J.step = 'Selesai'; J.status = 'done';
-        } catch (err) { J.status = 'error'; J.error = err.message; J.failStep = J.step; }
+          J.step = 'Selesai'; J.status = 'done'; J.at = Date.now();
+        } catch (err) { J.status = 'error'; J.error = err.message; J.failStep = J.step; J.at = Date.now(); }
       })();
       return;
     }
