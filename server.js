@@ -342,6 +342,9 @@ async function makeClip(p) {
 
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
+  // Blokir CSRF / DNS rebinding: hanya Host & Origin localhost yang boleh.
+  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
+  if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) { res.setHeader('Content-Type', u.pathname.endsWith('.js') ? 'text/javascript' : 'text/css'); return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8)); }
