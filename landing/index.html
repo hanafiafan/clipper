@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hellens Clipper — Ubah satu video jadi klip pendek siap posting</title>
+  <meta name="description" content="Aplikasi desktop pemotong video bertenaga AI: pilih momen terbaik, caption karaoke per kata, hook, dan skor. Video diproses di komputermu. Untuk macOS dan Windows.">
+  <meta name="theme-color" content="#FF6A00">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Hellens Clipper — AI Video Clipper">
+  <meta property="og:description" content="Satu video, beberapa klip siap posting. Diproses lokal di komputermu.">
+  <meta property="og:image" content="assets/app-studio.png">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12l1-8z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+      <symbol id="i-caption" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M7 12h5M7 15.5h10M15 12h2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-frame" viewBox="0 0 24 24"><path d="M7 3v4M7 17v4M3 7h4M3 17h4M17 3v4M17 21v-4M21 7h-4M21 17h-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><rect x="8" y="8" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="i-hook" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 12h8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.2c0 4.7-3 8-7 9.8-4-1.8-7-5.1-7-9.8V6l7-3z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 12l2.3 2.3L15.5 10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-team" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M16 5.2a3 3 0 010 5.6M18 14.4c1.6.7 2.6 2.1 3 4.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-mac" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-win" viewBox="0 0 24 24"><path d="M3 5.5l7.5-1v7H3zM11.5 4.4L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z" fill="currentColor"/></symbol>
+    </defs>
+  </svg>
+
+  <a class="skip" href="#utama">Lewati ke konten</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="#" aria-label="Hellens Clipper — beranda">
+        <span class="logo"><img src="assets/logo-mark.svg" alt="" width="26" height="14"></span>
+        <span class="brand-name"><span>HELLENS</span><span>CLIPPER</span></span>
+      </a>
+      <nav aria-label="Navigasi utama">
+        <ul class="nav-links">
+          <li><a href="#cara-kerja">Cara kerja</a></li>
+          <li><a href="#fitur">Fitur</a></li>
+          <li><a href="#harga">Harga</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </nav>
+      <a class="btn primary" href="#unduh">Unduh</a>
+    </div>
+  </header>
+
+  <main id="utama">
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <span class="pill"><i></i> Diproses lokal di komputermu</span>
+            <h1>Dari satu video jadi klip pendek yang <em>siap posting.</em></h1>
+            <p class="lead">Tempel link YouTube atau unggah video. AI memilih momen terbaik, menambahkan caption karaoke per kata dan hook, lalu memberi skor A–D supaya kamu tahu mana yang paling layak naik.</p>
+            <div class="cta-row">
+              <a class="btn primary" href="#unduh"><svg aria-hidden="true"><use href="#i-down"/></svg> Unduh aplikasi</a>
+              <a class="btn" href="#cara-kerja">Lihat cara kerja</a>
+            </div>
+            <p class="fine">macOS (Apple Silicon) · Windows 64-bit · Gratis untuk mulai</p>
+          </div>
+
+          <div class="phone-stage">
+            <div class="phone" role="img" aria-label="Ilustrasi klip vertikal 9:16 dengan badge hook di atas dan caption karaoke di bawah">
+              <div class="screen">
+                <span class="shape s1"></span><span class="shape s2"></span>
+                <span class="grade">Grade <b>A</b> · Skor 91</span>
+                <span class="hook">3 DETIK PENENTU</span>
+                <p class="caption">Kunci klip yang bikin <span class="on">berhenti</span> scroll</p>
+                <span class="progress"><i></i></span>
+              </div>
+            </div>
+            <span class="phone-note">Ilustrasi hasil klip 9:16</span>
+          </div>
+        </div>
+
+        <div class="providers" aria-label="Penyedia AI yang didukung">
+          <span class="eyebrow">Pakai AI pilihanmu</span>
+          <span class="chip">Gemini</span><span class="chip">OpenAI</span><span class="chip">Claude</span>
+          <span class="chip">Groq</span><span class="chip">Mistral</span><span class="chip">DeepSeek</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HOW IT WORKS ================= -->
+    <section class="section" id="cara-kerja">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">Cara kerja</span>
+          <h2>Tiga langkah, tanpa timeline editor.</h2>
+          <p>Kamu tidak perlu mencari momen sendiri atau memotong frame demi frame.</p>
+        </div>
+        <ol class="steps">
+          <li class="panel step">
+            <span class="num">01</span>
+            <h3>Tempel atau unggah</h3>
+            <p>Masukkan link YouTube, atau pilih file video dari komputermu. Pilih rasio, resolusi, dan gaya hook.</p>
+          </li>
+          <li class="panel step">
+            <span class="num">02</span>
+            <h3>AI menganalisis</h3>
+            <p>Whisper menyalin ucapan di komputermu, lalu AI memilih momen yang punya hook kuat dan bisa dipahami tanpa konteks.</p>
+          </li>
+          <li class="panel step">
+            <span class="num">03</span>
+            <h3>Unduh klip ber-grade</h3>
+            <p>Setiap klip dilengkapi judul, deskripsi, hashtag, skor, dan alasan pemilihan. Urut dari yang terbaik.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ================= FEATURES ================= -->
+    <section class="section" id="fitur" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">Fitur</span>
+          <h2>Semua yang dibutuhkan untuk membuat short.</h2>
+        </div>
+        <div class="features">
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-bolt"/></svg></span>
+            <h3>Auto-pilot AI</h3>
+            <p>Satu link menghasilkan beberapa short. Pemotongan di batas kalimat, dan klip bisa menggabungkan beberapa potongan tanpa bagian yang membosankan.</p>
+          </article>
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-caption"/></svg></span>
+            <h3>Caption karaoke per kata</h3>
+            <p>Kata yang sedang diucapkan menyala satu per satu. Pilih preset karaoke, beasty, simple, impact, clean, atau boxed.</p>
+          </article>
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-frame"/></svg></span>
+            <h3>Semua format</h3>
+            <p>9:16, 3:4, 1:1, dan 16:9 dengan crop atau background blur. Resolusi 360p sampai 4K, dengan zoom otomatis ke wajah pembicara.</p>
+          </article>
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-hook"/></svg></span>
+            <h3>Hook di 3 detik pertama</h3>
+            <p>Badge teks pembuka yang ditulis AI. Gaya, warna, dan bentuknya bisa diatur dari CMS tanpa mengubah kode.</p>
+          </article>
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <h3>Privat dan lokal</h3>
+            <p>Unduh, transkripsi, dan render berjalan di komputermu. API key AI disimpan lokal dan tidak pernah lewat server kami.</p>
+          </article>
+          <article class="panel feature">
+            <span class="icon"><svg aria-hidden="true"><use href="#i-team"/></svg></span>
+            <h3>Siap untuk tim</h3>
+            <p>Role owner, admin, dan member. Plan dengan kuota bulanan, dashboard admin, audit log, dan nonaktifkan akun kapan saja.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= APP SCREENSHOTS ================= -->
+    <section class="section" style="padding-top:0" aria-labelledby="t-app">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">Tampilan aplikasi</span>
+          <h2 id="t-app">Studio untuk kreator, dashboard untuk tim.</h2>
+          <p>Tangkapan layar asli dari aplikasi (data pada dashboard admin adalah contoh).</p>
+        </div>
+        <div class="shots">
+          <figure class="shot">
+            <div class="frame"><img src="assets/app-studio.png" width="1360" height="860" loading="lazy" alt="Halaman studio Hellens Clipper: kolom link YouTube, pilihan rasio, resolusi, gaya hook, dan penyedia AI"></div>
+            <figcaption><b>Studio</b><span>Tempel link, pilih format, dan biarkan AI bekerja. Kuota plan terlihat di header.</span></figcaption>
+          </figure>
+          <div class="shots-row">
+            <figure class="shot">
+              <div class="frame"><img src="assets/app-admin.png" width="1360" height="860" loading="lazy" alt="Dashboard admin: statistik pengguna, grafik pemakaian bulanan, dan tabel pengguna dengan pilihan role dan plan"></div>
+              <figcaption><b>Dashboard admin</b><span>Statistik pemakaian, role, plan, dan status akun dalam satu halaman.</span></figcaption>
+            </figure>
+            <figure class="shot">
+              <div class="frame"><img src="assets/app-cms.png" width="1360" height="860" loading="lazy" alt="Editor CMS untuk gaya hook, warna highlight caption, dan teks halaman plan"></div>
+              <figcaption><b>CMS</b><span>Atur gaya hook, warna caption, dan teks plan tanpa menyentuh kode.</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LOCAL-FIRST ================= -->
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="panel band">
+          <div>
+            <span class="eyebrow accent">Privasi</span>
+            <h2>Videomu tidak meninggalkan komputermu.</h2>
+            <p>Server hanya mengurus akun, plan, dan jumlah klip yang kamu buat. Video, audio, dan hasil render tidak pernah diunggah. Yang dikirim ke penyedia AI pilihanmu hanya teks transkrip.</p>
+          </div>
+          <div class="flow" role="list" aria-label="Apa yang diproses di mana">
+            <div class="flow-row" role="listitem"><span class="dot"></span><span>Unduh, transkripsi, potong, render</span><small>di komputermu</small></div>
+            <div class="flow-row" role="listitem"><span class="dot"></span><span>API key AI</span><small>di komputermu</small></div>
+            <div class="flow-row out" role="listitem"><span class="dot"></span><span>Teks transkrip</span><small>ke penyedia AI-mu</small></div>
+            <div class="flow-row out" role="listitem"><span class="dot"></span><span>Akun, plan, hitungan klip</span><small>ke server akun</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PRICING ================= -->
+    <section class="section" id="harga" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">Harga</span>
+          <h2>Mulai gratis, naik saat kamu butuh.</h2>
+          <p>Kuota dihitung per klip yang dirender, dan dikembalikan otomatis jika render gagal.</p>
+        </div>
+        <div class="plans">
+          <article class="panel plan">
+            <h3>Free</h3>
+            <div><p class="price">Gratis</p><p class="for">Untuk mencoba</p></div>
+            <ul>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>10 klip per bulan</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Resolusi hingga 720p</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>3 klip per proses</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Caption otomatis &amp; saran momen AI</li>
+            </ul>
+            <a class="btn" href="#unduh">Mulai gratis</a>
+          </article>
+          <article class="panel plan featured">
+            <span class="tag">Disarankan</span>
+            <h3>Pro</h3>
+            <div><p class="price">Hubungi kami</p><p class="for">Untuk kreator aktif</p></div>
+            <ul>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>100 klip per bulan</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Resolusi hingga 1080p</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>6 klip per proses</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Semua fitur Free</li>
+            </ul>
+            <a class="btn primary" href="#unduh">Pilih Pro</a>
+          </article>
+          <article class="panel plan">
+            <h3>Enterprise</h3>
+            <div><p class="price">Hubungi kami</p><p class="for">Untuk tim &amp; agensi</p></div>
+            <ul>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Klip tanpa batas</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Resolusi hingga 4K</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>Dashboard admin, role &amp; audit log</li>
+              <li><svg aria-hidden="true"><use href="#i-check"/></svg>CMS gaya hook &amp; caption</li>
+            </ul>
+            <a class="btn" href="#unduh">Bicara dengan kami</a>
+          </article>
+        </div>
+        <p class="plans-note">Harga akan ditentukan per plan. Perubahan plan saat ini dilakukan oleh admin; pembayaran online belum tersedia.</p>
+      </div>
+    </section>
+
+    <!-- ================= DOWNLOAD ================= -->
+    <section class="section" id="unduh" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">Unduh</span>
+          <h2>Pasang di komputermu.</h2>
+          <p>Installer sudah membawa ffmpeg, yt-dlp, Whisper, dan model transkripsi. Tidak ada yang perlu dipasang terpisah.</p>
+        </div>
+        <div class="downloads">
+          <article class="panel dl">
+            <div class="dl-head"><span class="icon"><svg aria-hidden="true"><use href="#i-mac"/></svg></span><div><h3>macOS</h3><p>Apple Silicon (M1 dan yang lebih baru)</p></div></div>
+            <ul>
+              <li>Berkas <code>.dmg</code>, seret ke Applications</li>
+              <li>Belum dinotarisasi Apple: buka pertama kali dengan klik-kanan → Buka</li>
+            </ul>
+            <a class="btn primary" href="https://github.com/hanafiafan/clipper/releases/latest"><svg aria-hidden="true"><use href="#i-down"/></svg> Unduh untuk macOS</a>
+          </article>
+          <article class="panel dl">
+            <div class="dl-head"><span class="icon"><svg aria-hidden="true"><use href="#i-win"/></svg></span><div><h3>Windows</h3><p>Windows 10/11, 64-bit</p></div></div>
+            <ul>
+              <li>Installer <code>.exe</code> (NSIS)</li>
+              <li>Belum ditandatangani: jika muncul SmartScreen, pilih “More info” → “Run anyway”</li>
+            </ul>
+            <a class="btn primary" href="https://github.com/hanafiafan/clipper/releases/latest"><svg aria-hidden="true"><use href="#i-down"/></svg> Unduh untuk Windows</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section class="section" id="faq" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow accent">FAQ</span>
+          <h2>Pertanyaan yang sering muncul.</h2>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>Apakah videoku diunggah ke server?</summary>
+            <p>Tidak. Unduh, transkripsi, pemotongan, dan render berlangsung di komputermu. Server hanya menyimpan akun, plan, dan hitungan klip. Penyedia AI yang kamu pilih menerima teks transkrip (bukan videonya) untuk memilih momen.</p>
+          </details>
+          <details>
+            <summary>Apakah butuh internet?</summary>
+            <p>Ya, untuk masuk ke akun, mengunduh video dari YouTube, dan memanggil penyedia AI. Pemotongan dan render sendiri berjalan tanpa internet.</p>
+          </details>
+          <details>
+            <summary>Apakah saya perlu API key AI?</summary>
+            <p>Ya. Isi API key dari Gemini, OpenAI, Claude, Groq, Mistral, atau DeepSeek di halaman Pengaturan. Key disimpan di komputermu dengan izin file khusus pemilik.</p>
+          </details>
+          <details>
+            <summary>Bahasa apa yang didukung untuk caption?</summary>
+            <p>Whisper mendeteksi bahasa otomatis. Untuk video berbahasa Indonesia, kamu bisa menetapkan bahasa agar akurasinya lebih tinggi.</p>
+          </details>
+          <details>
+            <summary>Bagaimana dengan Mac Intel atau Linux?</summary>
+            <p>Saat ini installer tersedia untuk macOS Apple Silicon dan Windows 64-bit. Mac Intel dan Linux belum tersedia.</p>
+          </details>
+          <details>
+            <summary>Kenapa aplikasi tidak mau terbuka di Mac / muncul peringatan di Windows?</summary>
+            <p>Aplikasi belum dinotarisasi (macOS) dan belum ditandatangani (Windows), sehingga sistem menampilkan peringatan. Di macOS klik-kanan aplikasi lalu pilih Buka. Di Windows pilih “More info” lalu “Run anyway”.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FINAL CTA ================= -->
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="panel final">
+          <h2>Siap mengubah videomu jadi klip?</h2>
+          <p>Pasang aplikasinya, isi API key, dan buat klip pertamamu dalam hitungan menit.</p>
+          <a class="btn primary" href="#unduh"><svg aria-hidden="true"><use href="#i-down"/></svg> Unduh aplikasi</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap foot">
+      <a class="brand" href="#" aria-label="Hellens Clipper — kembali ke atas">
+        <span class="logo"><img src="assets/logo-mark.svg" alt="" width="26" height="14"></span>
+        <span class="brand-name"><span>HELLENS</span><span>CLIPPER</span></span>
+      </a>
+      <ul>
+        <li><a href="#cara-kerja">Cara kerja</a></li>
+        <li><a href="#fitur">Fitur</a></li>
+        <li><a href="#harga">Harga</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <span>© Hellens Clipper</span>
+    </div>
+  </footer>
+</body>
+</html>

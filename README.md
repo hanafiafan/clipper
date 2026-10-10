@@ -135,6 +135,15 @@ caption di app terpaket, ratakan whisper + dylib-nya dulu:
 bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 ```
 
+## Landing page
+
+`landing/` berisi situs pemasaran statis (HTML + CSS, tanpa build dan tanpa JavaScript) dengan tema yang
+sama dengan aplikasi. Buka `landing/index.html` langsung, atau layani folder itu dengan server statis mana
+pun (`cd landing && python3 -m http.server`). Sebelum dipublikasikan: ganti tautan unduhan di bagian
+`#unduh` (sekarang mengarah ke `github.com/hanafiafan/clipper/releases/latest`), isi harga plan, dan
+ganti `og:image` dengan URL absolut. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli
+(data dashboard admin adalah contoh).
+
 ## Fitur
 
 | Fitur | Keterangan |
