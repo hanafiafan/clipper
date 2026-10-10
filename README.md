@@ -145,8 +145,10 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 
 ## Landing page
 
-`landing/` berisi situs pemasaran statis (HTML + CSS, tanpa build dan tanpa JavaScript) dengan tema yang
-sama dengan aplikasi. Buka `landing/index.html` langsung, atau layani folder itu dengan server statis mana
+`landing/` berisi situs pemasaran statis (HTML + CSS + sedikit JavaScript, tanpa build). Strukturnya mengikuti template
+"Onward summit" (nav, hero dengan medan simbol yang condong ke pointer dan beriak saat diklik, bagian berjudul
+"Tentang ...", daftar langkah yang bisa difilter, FAQ, band penutup, wordmark raksasa di footer) dengan tema aplikasi
+(gelap, oranye logo, Inter). Tanpa JavaScript halaman tetap terbaca; `prefers-reduced-motion` mematikan animasi hero. Buka `landing/index.html` langsung, atau layani folder itu dengan server statis mana
 pun (`cd landing && python3 -m http.server`).
 
 **Live:** https://clipper.hellens.dev (VPS `vps-run`: container `clipper-landing` = nginx di belakang Traefik/Coolify,
