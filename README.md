@@ -102,28 +102,36 @@ npm run build    # kompilasi UI ke dist/ (wajib sebelum start / dist)
 npm start
 ```
 
-Bikin installer:
+Bikin installer (hasil di `release/`):
 
 ```bash
-npm run build      # pastikan dist/ (UI) terbaru
+# 1. siapkan binary pendamping per platform (sekali; folder bin/ tidak masuk git)
+npm run bin:mac    # whisper-cli statis dibangun dari sumber (butuh cmake); lalu taruh ffmpeg + yt-dlp di bin/mac/
+npm run bin:win    # unduh ffmpeg.exe, yt-dlp.exe, whisper-cli.exe + DLL ke bin/win/ (checksum diverifikasi)
+
+# 2. bangun
 npm run dist:mac   # -> release/Hellens Clipper-<versi>-arm64.dmg
-npm run dist:win   # -> installer .exe di release/ (lihat catatan Windows)
+npm run dist:win   # -> release/Hellens Clipper Setup <versi>.exe
 ```
 
-Installer **mem-bundle** ffmpeg + yt-dlp + whisper-cli + model (~200MB), jadi
-app jalan tanpa instalasi tambahan. Data (hasil, riwayat) disimpan di folder
-userData OS, bukan di dalam app.
+Installer **mem-bundle** ffmpeg + yt-dlp + whisper-cli + model (~290 MB), jadi app jalan tanpa
+instalasi tambahan. Data (hasil, riwayat) disimpan di folder userData OS, bukan di dalam app.
 
 **Server pusat tidak ikut terbungkus.** App desktop tetap butuh login, jadi
 jalankan `central/server.js` di mesin yang terjangkau dan arahkan app ke sana
 lewat `CENTRAL_URL` (default `http://127.0.0.1:4000`).
 
-- **macOS**: `.dmg` yang dites di sini unsigned (ad-hoc). Di Mac lain, buka
-  pertama kali dengan klik-kanan → Open (lewati Gatekeeper). Untuk distribusi
-  publik: sign + notarize pakai Apple Developer ID.
-- **Windows**: config `nsis` sudah ada, tapi `bin/` saat ini berisi binary
-  **macOS**. Untuk .exe: taruh ffmpeg.exe + yt-dlp.exe (+ whisper-cli.exe/dll)
-  versi Windows di `bin/`, lalu build di Windows (atau CI). Build dari Mac perlu Wine.
+- **macOS**: hanya **Apple Silicon** (binary dibangun di arm64). App ditandatangani *ad-hoc*
+  (bukan Developer ID dan belum dinotarisasi): di Mac lain buka pertama kali dengan klik-kanan → Buka,
+  atau System Settings → Privacy & Security → Open Anyway. Untuk instalasi tanpa peringatan perlu
+  Developer ID + notarisasi.
+- **Windows** (x64, NSIS): belum ditandatangani, jadi SmartScreen akan menampilkan peringatan
+  (More info → Run anyway). Dibangun dari Mac Apple Silicon, `ikon dan metadata pada
+  Hellens Clipper.exe` memakai bawaan Electron karena Wine x86 tidak bisa jalan di sana; installer
+  dan ikon pintasannya tidak terpengaruh. Bangun di Windows/CI untuk hasil penuh. Skrip `dist-win.sh`
+  otomatis memakai `makensis` native Homebrew bila Mac tidak punya Rosetta. **Installer belum pernah
+  dijalankan di mesin Windows sungguhan**; isinya sudah diperiksa (binary, model, font, asar).
+- Badge hook butuh Chrome atau Edge (Edge sudah ada di Windows 10/11); tanpanya klip tetap jadi tanpa badge.
 - **Logo & ikon**: sumbernya `brand/logo.svg` (favicon + kotak logo di UI memakai `brand/logo-mark.svg`).
   Setelah mengganti logo, jalankan `npm run icons` untuk membuat ulang `build/icon.png` dan
   `build/icon.icns` (butuh Chrome; `.icns` hanya di macOS).
