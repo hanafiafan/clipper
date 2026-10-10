@@ -1,0 +1,31 @@
+# Static landing page behind the Traefik proxy that Coolify runs on the VPS (it issues the HTTPS certificate from these labels).
+# Files: ./site (the landing/ folder) and ./nginx.conf, both uploaded by scripts/deploy-landing.sh.
+services:
+  clipper-landing:
+    image: nginx:stable-alpine
+    container_name: clipper-landing
+    restart: unless-stopped
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [coolify]
+    mem_limit: 64m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.clipper.rule=Host(`clipper.hellens.dev`)
+      - traefik.http.routers.clipper.entrypoints=https
+      - traefik.http.routers.clipper.tls=true
+      - traefik.http.routers.clipper.tls.certresolver=letsencrypt
+      - traefik.http.routers.clipper-http.rule=Host(`clipper.hellens.dev`)
+      - traefik.http.routers.clipper-http.entrypoints=http
+      - traefik.http.routers.clipper-http.middlewares=clipper-https
+      - traefik.http.middlewares.clipper-https.redirectscheme.scheme=https
+      - traefik.http.services.clipper.loadbalancer.server.port=80
+networks:
+  coolify:
+    external: true

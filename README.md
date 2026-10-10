@@ -149,9 +149,17 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 sama dengan aplikasi. Buka `landing/index.html` langsung, atau layani folder itu dengan server statis mana
 pun (`cd landing && python3 -m http.server`).
 
-**Live:** https://hellens-clipper.vercel.app (Vercel, akun `hanafiafan20-3489`). Deploy ulang setelah mengubah:
-`cd landing && vercel deploy --prod --yes` (atau salin foldernya ke direktori bernama `hellens-clipper` agar nama
-proyek tetap sama). `landing/vercel.json` mengatur header keamanan dan cache aset.
+**Live:** https://clipper.hellens.dev (VPS `vps-run`: container `clipper-landing` = nginx di belakang Traefik/Coolify,
+sertifikat Let's Encrypt otomatis, DNS A `clipper` → IP VPS di Cloudflare mode *Proxied*).
+Cadangan: https://hellens-clipper.vercel.app (Vercel).
+
+```bash
+bash scripts/deploy-landing.sh                    # unggah landing/ ke /opt/clipper-landing di vps-run dan restart container
+cd landing && vercel deploy --prod --yes          # cadangan di Vercel (opsional)
+```
+
+Berkas deploy server ada di `deploy/landing/` (`docker-compose.yml` dengan label Traefik, `nginx.conf` dengan header
+keamanan dan cache aset). `landing/vercel.json` hanya dipakai Vercel dan tidak diunggah ke VPS.
 
 Yang masih perlu diisi: tautan unduhan di bagian `#unduh` (sekarang ke `github.com/hanafiafan/clipper/releases/latest`)
 dan harga plan. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli (data dashboard admin adalah contoh).
