@@ -80,6 +80,7 @@ const WHISPER_LANGUAGE = process.env.WHISPER_LANGUAGE || 'auto';
 // Filter audio sebelum Whisper: buang dengung/desis dan ratakan volume (dipakai semua jalur transkripsi).
 const SPEECH_AF = 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11';
 // Di app terpaket fonts/ di-unpack dari app.asar (ffmpeg adalah proses terpisah dan tak bisa membaca isi asar).
+const STUDIO = path.join(__dirname, 'studio');   // the original single-file UI, served at /studio behind login
 const FONTSDIR = path.join(__dirname, 'fonts').replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
 // Path di dalam filtergraph ffmpeg: backslash -> slash dan ':' di-escape (perlu di Windows: C:\\x -> C\\:/x).
 const ffPath = p => p.replace(/\\/g, '/').replace(/:/g, '\\:');
@@ -407,7 +408,7 @@ http.createServer(async (req, res) => {
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     const tok = cookieTok(req);
-    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || u.pathname === '/studio/account.js' || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
       if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status'].includes(act.slice(6))) { // peran dicek di pusat
@@ -427,6 +428,11 @@ http.createServer(async (req, res) => {
       return json(res, 404, { error: 'not found' });
     }
     const user = await userFor(req);
+    if (req.method === 'GET' && (u.pathname === '/studio' || u.pathname === '/studio/')) {   // the studio is a page: send visitors to the login page instead of a JSON error
+      if (!user) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
+      res.setHeader('Cache-Control', 'no-store'); return serve(res, STUDIO, 'index.html');
+    }
+    if (req.method === 'GET' && u.pathname === '/studio/account.js') return serve(res, STUDIO, 'account.js');
     if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8));

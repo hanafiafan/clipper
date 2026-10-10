@@ -36,6 +36,7 @@
       "index.html",
       "dist/**",
       "lib/**",
+      "studio/**",
       "scripts/badge.js",
       "scripts/chrome.js",
       "fonts/**",

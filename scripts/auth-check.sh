@@ -83,6 +83,13 @@ chk "audit mencatat nonaktifkan"    "$(curl -s -b $OJ $U/auth/admin/audit | grep
 chk "audit mencatat login sukses"   "$(curl -s -b $OJ $U/auth/admin/audit | grep -c user.login)" 1
 chk "audit punya penanda 'more'"    "$(curl -s -b $OJ $U/auth/admin/audit | grep -c '"more":')" 1
 chk "audit paginasi (?before=2)"    "$(curl -s -b $OJ "$U/auth/admin/audit?before=2" | grep -c '"id":2,')" 0
+# --- studio (UI asli di balik login) ---
+chk "studio tanpa login dialihkan ke /"  "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{redirect_url}' $U/studio)" "302 $U/"
+chk "account.js publik"             "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/account.js | cut -d';' -f1)" "200 text/javascript"
+chk "studio dengan login"           "$(code -b $OJ $U/studio)" 200
+chk "studio memuat account.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/account.js')" 1
+chk "studio memuat UI asli (editor)" "$(curl -s -b $OJ $U/studio | grep -c 'id=view-editor')" 1
+chk "studio tidak di-cache"         "$(curl -s -b $OJ -D - -o /dev/null $U/studio | grep -ci 'cache-control: no-store')" 1
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done
 chk "rate limit login"             "$(code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login)" 429
 rm -rf $T; exit $fail
