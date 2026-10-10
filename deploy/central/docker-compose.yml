@@ -1,0 +1,45 @@
+# Account server (central/server.js) behind the Traefik proxy that Coolify runs on the VPS.
+# Reachable at https://clipper.hellens.dev/api/...  (Traefik strips the /api prefix, so the server keeps its plain routes).
+# Code: ./app (server.js, cli.js, backup.js), uploaded by scripts/deploy-central.sh. Data: /var/lib/clipper-central (SQLite + backups).
+services:
+  clipper-central:
+    image: node:22-alpine
+    container_name: clipper-central
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "--no-warnings", "server.js"]
+    user: "1000:1000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4000"
+      CENTRAL_DB: /data/central.db
+      TRUST_PROXY: "1"        # real client IP from Cloudflare/Traefik headers (lockout + signup throttle)
+      NO_AUTO_OWNER: "1"      # nobody becomes owner by registering first; promote with cli.js
+    volumes:
+      - ./app:/app:ro
+      - /var/lib/clipper-central:/data
+    networks: [coolify]
+    mem_limit: 256m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.clipper-api.rule=Host(`clipper.hellens.dev`) && PathPrefix(`/api`)
+      - traefik.http.routers.clipper-api.entrypoints=https
+      - traefik.http.routers.clipper-api.tls=true
+      - traefik.http.routers.clipper-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.clipper-api.middlewares=clipper-api-strip
+      - traefik.http.routers.clipper-api-http.rule=Host(`clipper.hellens.dev`) && PathPrefix(`/api`)
+      - traefik.http.routers.clipper-api-http.entrypoints=http
+      - traefik.http.routers.clipper-api-http.middlewares=clipper-api-https
+      - traefik.http.middlewares.clipper-api-strip.stripprefix.prefixes=/api
+      - traefik.http.middlewares.clipper-api-https.redirectscheme.scheme=https
+      - traefik.http.services.clipper-api.loadbalancer.server.port=4000
+networks:
+  coolify:
+    external: true

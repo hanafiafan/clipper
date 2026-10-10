@@ -8,6 +8,8 @@ const URL = `http://localhost:${PORT}`;
 
 // When packaged, bundled binaries (ffmpeg/yt-dlp/whisper-cli) + model live in resources/.
 function wireResources() {
+  // Installed builds talk to the hosted account server unless CENTRAL_URL says otherwise (development keeps http://127.0.0.1:4000).
+  if (app.isPackaged && !process.env.CENTRAL_URL) process.env.CENTRAL_URL = 'https://clipper.hellens.dev/api';
   if (!app.isPackaged) return;
   const resDir = process.resourcesPath;
   const binDir = path.join(resDir, 'bin');

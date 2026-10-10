@@ -117,9 +117,9 @@ npm run dist:win   # -> release/Hellens Clipper Setup <versi>.exe
 Installer **mem-bundle** ffmpeg + yt-dlp + whisper-cli + model (~290 MB), jadi app jalan tanpa
 instalasi tambahan. Data (hasil, riwayat) disimpan di folder userData OS, bukan di dalam app.
 
-**Server pusat tidak ikut terbungkus.** App desktop tetap butuh login, jadi
-jalankan `central/server.js` di mesin yang terjangkau dan arahkan app ke sana
-lewat `CENTRAL_URL` (default `http://127.0.0.1:4000`).
+**Server akun tidak ikut terbungkus, tetapi sudah di-host.** Build terpaket otomatis memakai
+`https://clipper.hellens.dev/api` (ganti dengan variabel `CENTRAL_URL`); mode pengembangan tetap
+`http://127.0.0.1:4000`.
 
 - **macOS**: hanya **Apple Silicon** (binary dibangun di arm64). App ditandatangani *ad-hoc*
   (bukan Developer ID dan belum dinotarisasi): di Mac lain buka pertama kali dengan klik-kanan → Buka,
@@ -226,14 +226,36 @@ Opsional:
   sampai ke JavaScript halaman. Password di-hash scrypt, token sesi disimpan
   sebagai SHA-256, login dibatasi 5 percobaan / 15 menit.
 - Peran dicek di **server pusat**, bukan hanya di UI.
-- Server pusat belum memakai HTTPS. **Sebelum dipublikasikan**, taruh di
-  belakang reverse proxy HTTPS dan ubah alamat bind-nya.
+- Server akun produksi berjalan di belakang HTTPS (lihat bagian di bawah). Pengerasannya: pengguna pertama **tidak**
+  otomatis jadi owner (`NO_AUTO_OWNER=1`), batas login dihitung per IP klien asli (`TRUST_PROXY=1`), pendaftaran dibatasi
+  10 akun/jam/IP, dan setiap respons `no-store`.
+
+## Server akun di produksi
+
+`deploy/central/` + `scripts/deploy-central.sh` menjalankan `central/` di VPS (container `node:22-alpine` di belakang
+Traefik/Coolify) di `https://clipper.hellens.dev/api` (Traefik membuang awalan `/api`). Basis data SQLite ada di
+`/var/lib/clipper-central` dan **tidak disentuh** oleh deploy ulang.
+
+```bash
+bash scripts/deploy-central.sh      # unggah, buat ulang container, pasang cron backup 03:15 (14 salinan), cek health
+curl https://clipper.hellens.dev/api/health
+```
+
+**Menjadikan dirimu owner (sekali):** daftar lewat aplikasi, lalu di server:
+```bash
+ssh vps-run docker exec clipper-central node cli.js promote emailmu@contoh.com owner
+ssh vps-run docker exec clipper-central node cli.js list          # daftar user, role, plan
+ssh vps-run docker exec clipper-central node cli.js plan user@contoh.com pro
+```
+Backup manual: `ssh vps-run docker exec clipper-central node /app/backup.js /data/backups`.
+Belum ada verifikasi email: siapa pun bisa mendaftar dengan email apa saja (plan Free), jadi jangan beri hak tinggi
+tanpa memeriksa orangnya.
 
 ## Pengujian
 
 ```bash
 npm test                       # tes unit + smoke test akun (di bawah)
-node --test test/*.test.js     # hanya tes unit (pemecah transkrip, dedupe klip)
+node --test test/*.test.js     # hanya tes unit (transkrip, dedupe klip, pengerasan server akun)
 bash scripts/auth-check.sh     # hanya smoke test akun
 ```
 
