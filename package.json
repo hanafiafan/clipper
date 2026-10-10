@@ -107,5 +107,8 @@
   "productName": "Hellens Clipper",
   "dependencies": {
     "puppeteer-core": "^25.13.0"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

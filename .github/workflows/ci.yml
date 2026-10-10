@@ -1,0 +1,49 @@
+name: CI
+
+# Runs on every push to main and on every pull request: syntax, landing-page integrity, UI build, unit tests,
+# the account-server smoke test (boots the real servers on throwaway ports/DBs) and a production dependency audit.
+# No API keys, ffmpeg, yt-dlp or Whisper are needed: those paths are covered by the manual checklist in the README.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"   # electron is only needed to package the desktop app, not to test it
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22                 # node:sqlite (account server) needs 22.13+
+          cache: npm
+
+      - run: npm ci
+
+      - name: Syntax of servers, app shell and scripts
+        run: |
+          for f in server.js main.js central/*.js lib/*.js scripts/*.js; do node --check "$f"; done
+          for f in scripts/*.sh landing/install.sh; do bash -n "$f"; done
+
+      - name: Landing page integrity
+        run: node scripts/check-landing.js
+
+      - name: Build UI
+        run: npm run build
+
+      - name: Unit tests and account-server smoke test
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

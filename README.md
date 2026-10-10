@@ -1,5 +1,7 @@
 # Hellens Clipper
 
+[![CI](https://github.com/hanafiafan/clipper/actions/workflows/ci.yml/badge.svg)](https://github.com/hanafiafan/clipper/actions/workflows/ci.yml)
+
 Alat pemotong video jadi klip pendek (gaya Opus Clip): potong, ubah rasio,
 caption otomatis, hook, saran momen AI, dan YT downloader. Pemrosesan video
 **berjalan lokal di komputer pengguna**; akun, plan, dan pengelolaan
@@ -256,6 +258,12 @@ Belum ada verifikasi email: siapa pun bisa mendaftar dengan email apa saja (plan
 tanpa memeriksa orangnya.
 
 ## Pengujian
+
+**CI otomatis** (`.github/workflows/ci.yml`) berjalan di setiap push ke `main` dan setiap pull request: sintaks semua
+server/skrip, integritas landing page (`scripts/check-landing.js`), build UI, `npm test`, dan `npm audit` untuk dependency
+produksi. Tidak butuh API key, ffmpeg, yt-dlp, atau Whisper, jadi **render video dan transkripsi tidak diuji di CI**; itu
+tetap diperiksa manual (render satu klip bercaption + hook di Mac dan Windows sebelum tiap rilis).
+
 
 ```bash
 npm test                       # tes unit + smoke test akun (di bawah)
