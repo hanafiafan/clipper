@@ -10,7 +10,7 @@ HOST="${HOST:-vps-run}"; DIR=/opt/clipper-landing; DOMAIN=clipper.hellens.dev
 
 echo "== upload to $HOST:$DIR"
 ssh "$HOST" "mkdir -p $DIR/site"
-COPYFILE_DISABLE=1 tar --no-xattrs -C landing --exclude='.DS_Store' --exclude='vercel.json' --exclude='assets/creator-*' -czf - . | ssh "$HOST" "rm -rf $DIR/site/* && tar -xzf - -C $DIR/site"
+COPYFILE_DISABLE=1 tar --no-xattrs -C landing --exclude='.DS_Store' --exclude='assets/creator-*' -czf - . | ssh "$HOST" "rm -rf $DIR/site/* && tar -xzf - -C $DIR/site"
 # Cloudflare caches css/js by URL; stamp them with a content hash so every deploy is visible immediately.
 STAMP=$(cat landing/styles.css landing/script.js | shasum | cut -c1-8)
 ssh "$HOST" "sed -i 's#styles.css\"#styles.css?v=$STAMP\"#; s#script.js\"#script.js?v=$STAMP\"#' $DIR/site/index.html"

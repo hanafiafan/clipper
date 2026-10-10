@@ -169,15 +169,13 @@ pun (`cd landing && python3 -m http.server`).
 
 **Live:** https://clipper.hellens.dev (VPS `vps-run`: container `clipper-landing` = nginx di belakang Traefik/Coolify,
 sertifikat Let's Encrypt otomatis, DNS A `clipper` → IP VPS di Cloudflare mode *Proxied*).
-Cadangan: https://hellens-clipper.vercel.app (Vercel).
 
 ```bash
 bash scripts/deploy-landing.sh                    # unggah landing/ ke /opt/clipper-landing di vps-run dan restart container
-cd landing && vercel deploy --prod --yes          # cadangan di Vercel (opsional)
 ```
 
 Berkas deploy server ada di `deploy/landing/` (`docker-compose.yml` dengan label Traefik, `nginx.conf` dengan header
-keamanan dan cache aset). `landing/vercel.json` hanya dipakai Vercel dan tidak diunggah ke VPS.
+keamanan dan cache aset).
 
 Tombol unduh menunjuk ke berkas rilis GitHub (`releases/latest/download/Hellens-Clipper-macOS-arm64.dmg` dan
 `Hellens-Clipper-Windows-x64-Setup.exe`). Saat merilis versi baru, unggah berkas dengan nama yang sama agar tautan
