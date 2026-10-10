@@ -15,26 +15,7 @@ const html = `<!doctype html><meta charset=utf-8><style>${face}
 color:${d.color};background:${d.bg};padding:${Math.round(d.size*0.3)}px ${Math.round(d.size*0.55)}px;
 border-radius:${Math.round(d.size*(d.rounded?0.6:0.1))}px;text-align:center;
 ${maxW ? `max-width:${maxW}px;` : ''}white-space:${maxW ? 'normal' : 'nowrap'};word-break:break-word;overflow-wrap:anywhere}</style><body><span id=b>${esc(d.text)}</span>`;
-// Resolve a Chrome executable: env override, puppeteer's own, or scan its cache.
-function findChrome() {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
-  const base = path.join(require('os').homedir(), '.cache', 'puppeteer', 'chrome');
-  for (const dir of (fs.existsSync(base) ? fs.readdirSync(base) : [])) {
-    for (const sub of ['chrome-mac-arm64', 'chrome-mac-x64', 'chrome-linux64']) {
-      const d = path.join(base, dir, sub);
-      if (!fs.existsSync(d)) continue;
-      const mac = path.join(d, 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing');
-      if (fs.existsSync(mac)) return mac;
-      const lin = path.join(d, 'chrome'); if (fs.existsSync(lin)) return lin;
-    }
-  }
-  for (const sys of [ // fall back to a system Chrome/Chromium
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
-  ]) if (fs.existsSync(sys)) return sys;
-  return undefined;
-}
+const { findChrome } = require('./chrome');
 (async () => {
   const browser = await puppeteer.launch({ headless: 'new', executablePath: findChrome(), args: ['--no-sandbox', '--disable-setuid-sandbox', '--force-color-profile=srgb'] });
   const page = await browser.newPage();
