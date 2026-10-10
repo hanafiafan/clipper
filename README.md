@@ -124,7 +124,9 @@ lewat `CENTRAL_URL` (default `http://127.0.0.1:4000`).
 - **Windows**: config `nsis` sudah ada, tapi `bin/` saat ini berisi binary
   **macOS**. Untuk .exe: taruh ffmpeg.exe + yt-dlp.exe (+ whisper-cli.exe/dll)
   versi Windows di `bin/`, lalu build di Windows (atau CI). Build dari Mac perlu Wine.
-- Ikon default dipakai; taruh `build/icon.icns` / `build/icon.ico` untuk ikon sendiri.
+- **Logo & ikon**: sumbernya `brand/logo.svg` (favicon + kotak logo di UI memakai `brand/logo-mark.svg`).
+  Setelah mengganti logo, jalankan `npm run icons` untuk membuat ulang `build/icon.png` dan
+  `build/icon.icns` (butuh Chrome; `.icns` hanya di macOS).
 
 Bundle binary disiapkan di `bin/` (ffmpeg-static + yt-dlp standalone). Untuk
 caption di app terpaket, ratakan whisper + dylib-nya dulu:
