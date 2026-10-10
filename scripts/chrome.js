@@ -13,10 +13,17 @@ function findChrome() {
       const lin = path.join(d, 'chrome'); if (fs.existsSync(lin)) return lin;
     }
   }
+  // Windows: Microsoft Edge (Chromium) ships with Windows 10/11, so it is the reliable fallback; Chrome is preferred when present.
+  const win = ['PROGRAMFILES', 'PROGRAMFILES(X86)', 'LOCALAPPDATA'].filter(k => process.env[k]).flatMap(k => [
+    path.join(process.env[k], 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    path.join(process.env[k], 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+  ]);
+  win.sort((a, b) => /chrome\.exe$/.test(b) - /chrome\.exe$/.test(a)); // Chrome before Edge (stable sort keeps env order)
   for (const sys of [ // fall back to a system Chrome/Chromium
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
     '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+    ...win,
   ]) if (fs.existsSync(sys)) return sys;
   return undefined;
 }
