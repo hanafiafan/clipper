@@ -96,12 +96,22 @@ Bila server pusat tidak terjangkau, app lokal memakai salinan konten terakhir
 
 ## C. Aplikasi desktop (Mac/Windows)
 
-Jalankan sebagai jendela app:
+Aplikasi desktop **tidak punya jendela**: ia berjalan di latar belakang sebagai *backend* (server lokal: unduh, transkripsi,
+render) dengan ikon di menu bar (macOS) atau area notifikasi (Windows), dan **membuka tampilannya di browser bawaan**,
+langsung ke halaman login (`http://127.0.0.1:3002`). Frontend-nya adalah tab browser itu.
+
+- Menutup tab tidak menghentikan aplikasi. Klik ikon tray untuk **Buka Hellens Clipper**, menyalakan **Jalankan saat login**
+  (saat dijalankan otomatis ia tidak membuka browser), atau **Keluar**. Membuka aplikasi lagi dari Finder/Start hanya
+  membuka tab baru (hanya satu instance yang berjalan).
+- Bila port 3002 dipakai program lain, aplikasi memakai port kosong berikutnya (alamatnya tampil di menu tray).
+- Pertama kali dijalankan, muncul satu notifikasi yang menjelaskan di mana ikon aplikasi berada.
+- Di macOS ikon menu bar bisa perlu diizinkan di *System Settings → Menu Bar* bila disembunyikan.
+- Untuk pengujian otomatis: `KLIP_NO_BROWSER=1` (tidak membuka browser; mencetak diagnostik jumlah jendela dan batas ikon tray).
 
 ```bash
 npm install      # sekali, pasang electron
 npm run build    # kompilasi UI ke dist/ (wajib sebelum start / dist)
-npm start
+npm start        # menjalankan host; browser terbuka ke halaman login
 ```
 
 Bikin installer (hasil di `release/`):
