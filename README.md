@@ -163,8 +163,9 @@ cd landing && vercel deploy --prod --yes          # cadangan di Vercel (opsional
 Berkas deploy server ada di `deploy/landing/` (`docker-compose.yml` dengan label Traefik, `nginx.conf` dengan header
 keamanan dan cache aset). `landing/vercel.json` hanya dipakai Vercel dan tidak diunggah ke VPS.
 
-Yang masih perlu diisi: tautan unduhan di bagian `#unduh` (sekarang ke `github.com/hanafiafan/clipper/releases/latest`)
-dan harga plan. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli (data dashboard admin adalah contoh).
+Tombol unduh menunjuk ke berkas rilis GitHub (`releases/latest/download/Hellens-Clipper-macOS-arm64.dmg` dan
+`Hellens-Clipper-Windows-x64-Setup.exe`). Saat merilis versi baru, unggah berkas dengan nama yang sama agar tautan
+tetap berlaku (lihat rilis v1.0.0 untuk contoh). Yang masih perlu diisi: harga plan. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli (data dashboard admin adalah contoh).
 
 ## Fitur
 
