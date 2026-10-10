@@ -3,6 +3,9 @@
 const http = require('http'), path = require('path'), crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 const PORT = process.env.PORT || 4000;
+const HOST = process.env.HOST || '127.0.0.1';                 // di dalam container: 0.0.0.0
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';          // di belakang Traefik/Cloudflare: pakai IP klien asli dari header
+const NO_AUTO_OWNER = process.env.NO_AUTO_OWNER === '1';      // produksi: pengguna pertama TIDAK otomatis owner (promosikan lewat central/cli.js)
 const db = new DatabaseSync(process.env.CENTRAL_DB || path.join(__dirname, 'central.db'));
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
@@ -68,7 +71,9 @@ const getContent = () => Object.fromEntries(Object.entries(CONTENT).map(([k, c])
 const month = () => new Date().toISOString().slice(0, 7);
 const used = id => db.prepare('SELECT clips FROM usage WHERE user_id = ? AND month = ?').get(id, month())?.clips || 0;
 const pub = u => ({ id: u.id, email: u.email, name: u.name, role: u.role, plan: u.plan, limits: PLANS[u.plan], usage: { month: month(), clips: used(u.id) } });
-const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
+const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
+// IP klien: header proxy hanya dipercaya bila TRUST_PROXY=1 (kalau tidak, siapa pun bisa memalsukannya).
+const clientIp = req => (TRUST_PROXY && (req.headers['cf-connecting-ip'] || String(req.headers['x-forwarded-for'] || '').split(',')[0].trim())) || req.socket.remoteAddress;
 const body = req => new Promise((ok, no) => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => { try { ok(JSON.parse(s || '{}')); } catch { no(new Error('JSON tidak valid')); } }); });
 
 function newSession(userId) {
@@ -86,29 +91,36 @@ function userFor(req) { // token dikirim sebagai "Authorization: Bearer <token>"
 // ponytail: rate limit in-memory per IP+email; pindah ke tabel kalau pusat di-scale ke banyak proses.
 const fails = new Map();
 const blocked = k => (fails.get(k) || []).filter(t => Date.now() - t < 9e5).length >= 5;
+// ponytail: pembatas pendaftaran in-memory per IP (10/jam); hilang saat restart, pindah ke tabel bila perlu.
+const signups = new Map();
+const signupBlocked = ip => { const l = (signups.get(ip) || []).filter(t => Date.now() - t < 36e5); signups.set(ip, l); return l.length >= 10; };
 const fail = k => fails.set(k, [...(fails.get(k) || []).filter(t => Date.now() - t < 9e5), Date.now()]);
 
 http.createServer(async (req, res) => {
   try {
     const p = new URL(req.url, 'http://x').pathname;
+    if (req.method === 'GET' && p === '/health') return json(res, 200, { ok: true });
     if (req.method === 'POST' && p === '/register') {
+      const ip = clientIp(req);
+      if (signupBlocked(ip)) return json(res, 429, { error: 'Terlalu banyak pendaftaran dari alamat ini. Coba lagi nanti.' });
       const { email, name, password } = await body(req);
       const em = String(email || '').trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return json(res, 400, { error: 'Email tidak valid' });
       if (String(password || '').length < 8) return json(res, 400, { error: 'Password minimal 8 karakter' });
       if (!String(name || '').trim()) return json(res, 400, { error: 'Nama wajib diisi' });
       if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(em)) return json(res, 409, { error: 'Email sudah terdaftar' });
-      const first = !db.prepare('SELECT 1 FROM users LIMIT 1').get(); // pengguna pertama = owner
+      const first = !NO_AUTO_OWNER && !db.prepare('SELECT 1 FROM users LIMIT 1').get(); // dev: pengguna pertama = owner
       const r = db.prepare('INSERT INTO users (email,name,pw,role,created_at) VALUES (?,?,?,?,?)')
         .run(em, String(name).trim().slice(0, 80), hashPw(String(password)), first ? 'owner' : 'member', new Date().toISOString());
       const u = db.prepare('SELECT * FROM users WHERE id = ?').get(r.lastInsertRowid);
+      signups.set(ip, [...(signups.get(ip) || []), Date.now()]);
       audit(em, 'user.register', em, first ? 'owner pertama' : null);
       return json(res, 200, { token: newSession(u.id), user: pub(u) });
     }
     if (req.method === 'POST' && p === '/login') {
       const { email, password } = await body(req);
-      const em = String(email || '').trim().toLowerCase(), key = req.socket.remoteAddress + '|' + em;
-      if (blocked(key)) { audit(em, 'user.login.blocked', em, req.socket.remoteAddress); return json(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' }); }
+      const em = String(email || '').trim().toLowerCase(), key = clientIp(req) + '|' + em;
+      if (blocked(key)) { audit(em, 'user.login.blocked', em, clientIp(req)); return json(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 15 menit lagi.' }); }
       const u = db.prepare('SELECT * FROM users WHERE email = ?').get(em);
       // hash dummy bila user tak ada, supaya waktu respons tidak membocorkan email terdaftar
       const ok = u ? checkPw(String(password || ''), u.pw) : (checkPw('x', hashPw('y')), false);
@@ -196,5 +208,5 @@ http.createServer(async (req, res) => {
     }
     json(res, 404, { error: 'not found' });
   } catch (err) { json(res, 500, { error: err.message }); }
-}).listen(PORT, '127.0.0.1', () => console.log(`Hellens Central: http://127.0.0.1:${PORT}`));
-// ponytail: bind 127.0.0.1 untuk dev; saat deploy publik taruh di belakang HTTPS reverse proxy dan ubah host bind.
+}).listen(PORT, HOST, () => console.log(`Hellens Central: http://${HOST}:${PORT}`));
+// ponytail: HTTPS tidak ditangani di sini; di produksi taruh di belakang reverse proxy (lihat deploy/central/) dan set HOST, TRUST_PROXY, NO_AUTO_OWNER.
