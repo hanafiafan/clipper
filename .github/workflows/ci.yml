@@ -17,14 +17,14 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04      # pinned: ubuntu-latest moves to a new OS image on 2026-10-19
     timeout-minutes: 15
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"   # electron is only needed to package the desktop app, not to test it
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22                 # node:sqlite (account server) needs 22.13+
           cache: npm
