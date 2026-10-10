@@ -41,7 +41,7 @@
               if (gap < WAVE) { const k = (1 - gap / WAVE) * (1 - age); len += 4.5 * k; a += 0.6 * k; }
             }
           }
-          ctx.strokeStyle = `rgba(233,238,230,${Math.min(a, 1).toFixed(3)})`;
+          ctx.strokeStyle = `rgba(255,84,43,${Math.min(a, 1).toFixed(3)})`;
           const cx = Math.cos(ang) * len, cy = Math.sin(ang) * len;
           ctx.beginPath(); ctx.moveTo(x - cx, y - cy); ctx.lineTo(x + cx, y + cy); ctx.stroke();
         }
