@@ -11,13 +11,17 @@
     "test": "node --test test/*.test.js && bash scripts/auth-check.sh",
     "dev": "vite",
     "start": "electron .",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win"
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "bin:mac": "bash scripts/build-whisper-mac.sh",
+    "bin:win": "bash scripts/fetch-win-binaries.sh"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^33.4.11",
     "electron-builder": "^25.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "vite": "^8.3.3"
   },
   "build": {
@@ -32,18 +36,12 @@
       "index.html",
       "dist/**",
       "lib/**",
-      "scripts/**",
+      "scripts/badge.js",
+      "scripts/chrome.js",
       "fonts/**",
       "brand/**"
     ],
     "extraResources": [
-      {
-        "from": "bin",
-        "to": "bin",
-        "filter": [
-          "**/*"
-        ]
-      },
       {
         "from": "models",
         "to": "models",
@@ -53,13 +51,45 @@
       }
     ],
     "mac": {
-      "target": "dmg",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
       "category": "public.app-category.video",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extraResources": [
+        {
+          "from": "bin/mac",
+          "to": "bin",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
     },
     "win": {
-      "target": "nsis",
-      "icon": "build/icon.png"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "extraResources": [
+        {
+          "from": "bin/win",
+          "to": "bin",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",
@@ -67,12 +97,13 @@
     },
     "dmg": {
       "icon": false
-    }
+    },
+    "asarUnpack": [
+      "fonts/**"
+    ]
   },
   "productName": "Hellens Clipper",
   "dependencies": {
-    "puppeteer-core": "^25.13.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "puppeteer-core": "^25.13.0"
   }
 }
