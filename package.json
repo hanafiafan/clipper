@@ -12,7 +12,7 @@
     "dev": "vite",
     "start": "electron .",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win",
+    "dist:win": "bash scripts/dist-win.sh",
     "bin:mac": "bash scripts/build-whisper-mac.sh",
     "bin:win": "bash scripts/fetch-win-binaries.sh"
   },
@@ -89,7 +89,8 @@
             "**/*"
           ]
         }
-      ]
+      ],
+      "signAndEditExecutable": false
     },
     "linux": {
       "target": "AppImage",
