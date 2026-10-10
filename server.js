@@ -248,9 +248,15 @@ const HIST = path.join(DATA, 'history.json');
 // ponytail: naive read-modify-write; fine for single local user, add a lock if clips run in parallel.
 const readHist = () => { try { return JSON.parse(fs.readFileSync(HIST, 'utf8')); } catch { return []; } };
 const writeHist = h => fs.writeFileSync(HIST, JSON.stringify(h, null, 2));
+const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  gif: 'image/gif', webp: 'image/webp', ico: 'image/x-icon', ttf: 'font/ttf', woff2: 'font/woff2', mp4: 'video/mp4', mp3: 'audio/mpeg', srt: 'text/plain; charset=utf-8',
+  ass: 'text/plain; charset=utf-8', json: 'application/json' };
 const serve = (res, dir, name) => { // basename blocks ../ traversal
   const f = path.join(dir, path.basename(name));
-  fs.existsSync(f) ? (res.writeHead(200), fs.createReadStream(f).pipe(res)) : json(res, 404, { error: 'not found' });
+  if (!fs.existsSync(f)) return json(res, 404, { error: 'not found' });
+  // Content-Type wajib: browser menolak SVG (favicon / <img>) tanpa image/svg+xml. Header yang sudah diset pemanggil dihormati.
+  if (!res.getHeader('Content-Type')) res.setHeader('Content-Type', MIME[path.extname(f).slice(1).toLowerCase()] || 'application/octet-stream');
+  res.writeHead(200); fs.createReadStream(f).pipe(res);
 };
 
 const jobs = {}; // in-memory auto-pilot jobs. ponytail: fine for single local user; use a store if multi-user.
