@@ -69,7 +69,10 @@
             "**/*"
           ]
         }
-      ]
+      ],
+      "extendInfo": {
+        "LSUIElement": true
+      }
     },
     "win": {
       "target": [
