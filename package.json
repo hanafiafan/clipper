@@ -100,7 +100,8 @@
     },
     "asarUnpack": [
       "fonts/**"
-    ]
+    ],
+    "afterPack": "scripts/adhoc-sign.js"
   },
   "productName": "Hellens Clipper",
   "dependencies": {
