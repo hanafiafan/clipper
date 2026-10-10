@@ -147,10 +147,14 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 
 `landing/` berisi situs pemasaran statis (HTML + CSS, tanpa build dan tanpa JavaScript) dengan tema yang
 sama dengan aplikasi. Buka `landing/index.html` langsung, atau layani folder itu dengan server statis mana
-pun (`cd landing && python3 -m http.server`). Sebelum dipublikasikan: ganti tautan unduhan di bagian
-`#unduh` (sekarang mengarah ke `github.com/hanafiafan/clipper/releases/latest`), isi harga plan, dan
-ganti `og:image` dengan URL absolut. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli
-(data dashboard admin adalah contoh).
+pun (`cd landing && python3 -m http.server`).
+
+**Live:** https://hellens-clipper.vercel.app (Vercel, akun `hanafiafan20-3489`). Deploy ulang setelah mengubah:
+`cd landing && vercel deploy --prod --yes` (atau salin foldernya ke direktori bernama `hellens-clipper` agar nama
+proyek tetap sama). `landing/vercel.json` mengatur header keamanan dan cache aset.
+
+Yang masih perlu diisi: tautan unduhan di bagian `#unduh` (sekarang ke `github.com/hanafiafan/clipper/releases/latest`)
+dan harga plan. Tangkapan layar di `landing/assets/` diambil dari aplikasi asli (data dashboard admin adalah contoh).
 
 ## Fitur
 
