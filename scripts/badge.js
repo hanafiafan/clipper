@@ -1,7 +1,6 @@
 // Render a rounded pill badge (text + emoji) to a tight transparent PNG via headless Chrome.
 // Uses puppeteer-core (project dependency) with a system Chrome/Chromium; set PUPPETEER_EXECUTABLE_PATH to override.
 const fs = require('fs'), path = require('path');
-const puppeteer = require('puppeteer-core');
 const [, , outPath, dataJson] = process.argv;
 const d = JSON.parse(dataJson);
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -17,6 +16,8 @@ border-radius:${Math.round(d.size*(d.rounded?0.6:0.1))}px;text-align:center;
 ${maxW ? `max-width:${maxW}px;` : ''}white-space:${maxW ? 'normal' : 'nowrap'};word-break:break-word;overflow-wrap:anywhere}</style><body><span id=b>${esc(d.text)}</span>`;
 const { findChrome } = require('./chrome');
 (async () => {
+  // puppeteer-core is ESM-only: require() of it fails on Electron 33's Node, dynamic import() works everywhere.
+  const puppeteer = (m => m.default || m)(await import('puppeteer-core'));
   const browser = await puppeteer.launch({ headless: 'new', executablePath: findChrome(), args: ['--no-sandbox', '--disable-setuid-sandbox', '--force-color-profile=srgb'] });
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 600, deviceScaleFactor: 1 }); // 1:1 so PNG pixels == video coords (no overflow)

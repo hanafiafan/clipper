@@ -4,7 +4,6 @@
 // Needs Chrome/Chromium (see scripts/chrome.js).
 const fs = require('fs'), path = require('path'), os = require('os');
 const { execFileSync } = require('child_process');
-const puppeteer = require('puppeteer-core');
 const { findChrome } = require('./chrome');
 
 const root = path.join(__dirname, '..'), out = path.join(root, 'build');
@@ -15,6 +14,7 @@ const html = `<!doctype html><style>*{margin:0}html,body{background:transparent}
 #i{width:1024px;height:1024px;border-radius:230px;overflow:hidden;background:#FF6A00}svg{display:block}</style><div id="i">${recentred}</div>`;
 
 (async () => {
+  const puppeteer = (m => m.default || m)(await import('puppeteer-core')); // ESM-only package
   const browser = await puppeteer.launch({ headless: 'new', executablePath: findChrome(), args: ['--no-sandbox', '--force-color-profile=srgb'] });
   const page = await browser.newPage();
   await page.setViewport({ width: 1024, height: 1024, deviceScaleFactor: 1 });
