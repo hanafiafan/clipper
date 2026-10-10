@@ -79,7 +79,10 @@ const MODEL = process.env.WHISPER_MODEL || path.join(__dirname, 'models', 'ggml-
 const WHISPER_LANGUAGE = process.env.WHISPER_LANGUAGE || 'auto';
 // Filter audio sebelum Whisper: buang dengung/desis dan ratakan volume (dipakai semua jalur transkripsi).
 const SPEECH_AF = 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11';
-const FONTSDIR = path.join(__dirname, 'fonts');
+// Di app terpaket fonts/ di-unpack dari app.asar (ffmpeg adalah proses terpisah dan tak bisa membaca isi asar).
+const FONTSDIR = path.join(__dirname, 'fonts').replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+// Path di dalam filtergraph ffmpeg: backslash -> slash dan ':' di-escape (perlu di Windows: C:\\x -> C\\:/x).
+const ffPath = p => p.replace(/\\/g, '/').replace(/:/g, '\\:');
 const BOLD_FONT = path.join(FONTSDIR, 'THEBOLDFONT-FREEVERSION.ttf');
 // Caption presets (fonts bundled from the project). ASS force_style; sizes tuned for SRT PlayRes ~288.
 // ponytail: per-word karaoke highlight is stubbed in the source too; these style the whole phrase.
@@ -319,13 +322,13 @@ async function makeClip(p) {
   if (captions && wordByWord) {
     const words = await transcribeWords(src, s, e, base);
     if (words.length) { fs.writeFileSync(path.join(OUT, base + '.ass'), buildKaraokeAss(words, preset, w, h, { position: captionPosition, size: captionSize, color: captionColor }));
-      steps.push(`${label}subtitles=${base}.ass:fontsdir='${FONTSDIR}'[vc]`); label = '[vc]'; }
+      steps.push(`${label}subtitles=${base}.ass:fontsdir='${ffPath(FONTSDIR)}'[vc]`); label = '[vc]'; }
   } else if (captions && await transcribe(src, s, e, base)) {
     const scale = { small: .82, medium: 1, large: 1.22 }[captionSize] || 1;
     const alignment = { top: 8, center: 5, bottom: 2 }[captionPosition] || 2;
     let style = PRESETS[preset].replace(/FontSize=(\d+)/, (_, n) => 'FontSize=' + Math.round(+n * scale)).replace(/Alignment=\d+/, 'Alignment=' + alignment);
     if (/^#[0-9a-fA-F]{6}$/.test(captionColor || '')) style = style.replace(/PrimaryColour=[^,]+/, 'PrimaryColour=' + hexAss(captionColor));
-    steps.push(`${label}subtitles=${base}.srt:fontsdir='${FONTSDIR}':force_style='${style}'[vc]`); label = '[vc]';
+    steps.push(`${label}subtitles=${base}.srt:fontsdir='${ffPath(FONTSDIR)}':force_style='${style}'[vc]`); label = '[vc]';
   }
   const inputs = ['-i', src]; let nIn = 1;
   if (logoPath) {
