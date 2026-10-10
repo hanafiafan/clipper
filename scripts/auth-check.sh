@@ -86,6 +86,7 @@ chk "audit paginasi (?before=2)"    "$(curl -s -b $OJ "$U/auth/admin/audit?befor
 # --- studio (UI asli di balik login) ---
 chk "studio tanpa login dialihkan ke /"  "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{redirect_url}' $U/studio)" "302 $U/"
 chk "account.js publik"             "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/account.js | cut -d';' -f1)" "200 text/javascript"
+chk "dashboard.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/dashboard.js | cut -d';' -f1)" "200 text/javascript"
 chk "studio dengan login"           "$(code -b $OJ $U/studio)" 200
 chk "studio memuat account.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/account.js')" 1
 chk "studio memuat UI asli (editor)" "$(curl -s -b $OJ $U/studio | grep -c 'id=view-editor')" 1

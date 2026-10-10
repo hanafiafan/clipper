@@ -46,12 +46,15 @@
     if (!picked) { const ok = [...document.querySelectorAll('#aRes button:not([disabled])')].find(b => b.textContent.trim() === user.limits.maxResolution) || document.querySelector('#aRes button:not([disabled])'); ok?.click(); }
   }
 
+  const import_dash = () => new Promise(ok => { const sc = document.createElement('script'); sc.src = '/studio/dashboard.js'; sc.onload = ok; sc.onerror = ok; document.head.appendChild(sc); });
+
   async function refresh() {
     lastRefresh = Date.now();
     const r = await fetch('/auth/me').catch(() => null);
     if (!r) return;
     if (r.status === 401) return toLogin();
-    user = (await r.json()).user; render(); lockResolutions();
+    user = window.__klipUser = (await r.json()).user; render(); lockResolutions();
+    if (!window.__klipDash) await import_dash(); else if (document.getElementById('view-dashboard')?.classList.contains('active')) window.__klipDash.paint(); else window.__klipDash.paintSide(user);
   }
 
   // Keep the quota fresh after a render finishes, and bounce to login if the session dies mid-use.
