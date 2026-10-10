@@ -16,6 +16,9 @@ STAMP=$(cat landing/styles.css landing/script.js | shasum | cut -c1-8)
 ssh "$HOST" "sed -i 's#styles.css\"#styles.css?v=$STAMP\"#; s#script.js\"#script.js?v=$STAMP\"#' $DIR/site/index.html"
 scp -q deploy/landing/docker-compose.yml deploy/landing/nginx.conf "$HOST:$DIR/"
 
+echo "== validate nginx config before touching the running container"
+ssh "$HOST" "docker run --rm -v $DIR/nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:stable-alpine nginx -t 2>&1 | tail -2"
+
 echo "== (re)start container"
 ssh "$HOST" "cd $DIR && docker compose up -d --force-recreate && docker compose ps"
 

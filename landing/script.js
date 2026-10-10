@@ -111,4 +111,11 @@
     setTimeout(() => { copyBtn.textContent = 'Salin daftar'; }, 2000);
   });
   refresh();
+
+  /* ---------- copy buttons for terminal commands ---------- */
+  $$('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    const text = $('code', b.parentElement).textContent.trim();
+    try { await navigator.clipboard.writeText(text); b.textContent = 'Tersalin ✓'; } catch (_) { b.textContent = 'Salin manual'; }
+    setTimeout(() => { b.textContent = 'Salin'; }, 2000);
+  }));
 })();

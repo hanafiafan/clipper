@@ -121,10 +121,14 @@ instalasi tambahan. Data (hasil, riwayat) disimpan di folder userData OS, bukan 
 `https://clipper.hellens.dev/api` (ganti dengan variabel `CENTRAL_URL`); mode pengembangan tetap
 `http://127.0.0.1:4000`.
 
-- **macOS**: hanya **Apple Silicon** (binary dibangun di arm64). App ditandatangani *ad-hoc*
-  (bukan Developer ID dan belum dinotarisasi): di Mac lain buka pertama kali dengan klik-kanan → Buka,
-  atau System Settings → Privacy & Security → Open Anyway. Untuk instalasi tanpa peringatan perlu
-  Developer ID + notarisasi.
+- **macOS**: hanya **Apple Silicon** (binary dibangun di arm64). App ditandatangani *ad-hoc* (bukan Developer ID dan
+  belum dinotarisasi), jadi `.dmg` yang diunduh lewat browser **diblokir** macOS saat pertama dibuka ("Apple could not
+  verify ... is free of malware"). Di **macOS 15 ke atas klik-kanan → Buka tidak lagi cukup**. Pilih salah satu:
+  1. Klik **Done**, buka *System Settings → Privacy & Security*, gulir ke bawah, klik **Open Anyway** pada "Hellens Clipper".
+  2. Terminal: `xattr -dr com.apple.quarantine "/Applications/Hellens Clipper.app"`.
+  3. Pasang lewat skrip (unduhan `curl` tidak berkarantina, checksum diverifikasi): `curl -fsSL https://clipper.hellens.dev/install.sh | bash`
+     (sumbernya `landing/install.sh`).
+  Tanpa peringatan sama sekali butuh Apple Developer ID + notarisasi.
 - **Windows** (x64, NSIS): belum ditandatangani, jadi SmartScreen akan menampilkan peringatan
   (More info → Run anyway). Dibangun dari Mac Apple Silicon, `ikon dan metadata pada
   Hellens Clipper.exe` memakai bawaan Electron karena Wine x86 tidak bisa jalan di sana; installer

@@ -246,9 +246,12 @@
               <ul class="arrows">
                 <li><svg aria-hidden="true"><use href="#i-ne"/></svg>Seret ke Applications, tanpa instalasi tambahan</li>
                 <li><svg aria-hidden="true"><use href="#i-ne"/></svg>ffmpeg, yt-dlp, Whisper, dan model ikut terbawa</li>
-                <li><svg aria-hidden="true"><use href="#i-ne"/></svg>Belum dinotarisasi: buka pertama kali dengan klik-kanan, lalu Buka</li>
+                <li><svg aria-hidden="true"><use href="#i-ne"/></svg>Belum dinotarisasi Apple, jadi macOS memblokirnya saat pertama dibuka. Buka System Settings, Privacy &amp; Security, lalu klik Open Anyway</li>
               </ul>
               <div class="dl-actions"><a class="btn solid" href="https://github.com/hanafiafan/clipper/releases/latest/download/Hellens-Clipper-macOS-arm64.dmg" download>Unduh untuk macOS <svg aria-hidden="true"><use href="#i-ne"/></svg></a><a class="link" href="https://github.com/hanafiafan/clipper/releases/latest">Semua versi dan checksum</a></div>
+              <p class="addr" style="margin-top:22px">Atau pasang lewat Terminal, tanpa peringatan:</p>
+              <div class="cmd"><code>curl -fsSL https://clipper.hellens.dev/install.sh | bash</code><button type="button" data-copy aria-label="Salin perintah">Salin</button></div>
+              <p class="note" style="margin-top:10px">Skrip memverifikasi checksum sebelum memasang. <a class="link" href="install.sh">Baca skripnya</a></p>
             </div>
             <div class="dl-block">
               <h3>Windows</h3>
@@ -302,7 +305,7 @@
           </details>
           <details>
             <summary>Kenapa muncul peringatan saat pertama kali membuka aplikasi?</summary>
-            <p>Aplikasi belum dinotarisasi (macOS) dan belum ditandatangani (Windows), sehingga sistem menampilkan peringatan. Di macOS klik-kanan aplikasi lalu pilih Buka. Di Windows pilih “More info”, lalu “Run anyway”.</p>
+            <p>Aplikasi belum dinotarisasi (macOS) dan belum ditandatangani (Windows), sehingga sistem memblokirnya saat pertama dibuka. Di macOS 15 ke atas, klik-kanan lalu Buka tidak lagi melewati blokir ini: klik Done pada dialognya, buka System Settings, Privacy &amp; Security, gulir ke bawah, klik Open Anyway pada “Hellens Clipper”, lalu masukkan password. Alternatifnya, pasang lewat Terminal dengan perintah curl di bagian Unduh. Di Windows pilih “More info”, lalu “Run anyway”.</p>
           </details>
         </div>
       </div>
