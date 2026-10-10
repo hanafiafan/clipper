@@ -27,3 +27,4 @@ models/
 
 # Database server pusat
 central/*.db*
+.local/
