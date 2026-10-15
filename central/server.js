@@ -286,7 +286,7 @@ http.createServer(async (req, res) => {
           callbackUrl: `${doku.cfg().publicBase}/billing/return?inv=${invoice}${port ? '&p=' + port : ''}` });
         db.prepare('UPDATE orders SET url = ? WHERE id = ?').run(url, r.lastInsertRowid); audit(u.email, 'billing.checkout', invoice, `${plan}/${period} Rp${price}`);
         return json(res, 200, { url, invoice });
-      } catch (e) { db.prepare("UPDATE orders SET status = 'failed' WHERE id = ?").run(r.lastInsertRowid); audit(u.email, 'billing.checkout.failed', invoice, e.message.slice(0, 200)); return json(res, 502, { error: e.message }); }
+      } catch (e) { db.prepare("UPDATE orders SET status = 'failed' WHERE id = ?").run(r.lastInsertRowid); audit(u.email, 'billing.checkout.failed', invoice, e.message.slice(0, 200)); return json(res, 424, { error: e.message }); }   // bukan 502: Traefik/Cloudflare mengganti badan jawaban 502, pesannya hilang
     }
     if (req.method === 'POST' && p === '/logout') {
       db.prepare('DELETE FROM sessions WHERE hash = ?').run(sha(req.headers.authorization.replace(/^Bearer /, ''))); return json(res, 200, { ok: true });

@@ -32,6 +32,15 @@ async function call(method, target, bodyObj) {
   return { status: r.status, j };
 }
 
+// DOKU answers with {error:{code,message}} (auth problems) or {error_messages:[...]} (validation). Turn the common credential mistakes into something fixable.
+function explain(status, j) {
+  const env = cfg().base.includes('sandbox') ? 'sandbox' : 'production', e = j && j.error && typeof j.error === 'object' ? j.error : null;
+  if (e && e.code === 'invalid_client_id') return `DOKU: Client ID tidak dikenal di lingkungan ${env}. Pastikan Client ID dan Secret Key diambil dari mode ${env} yang sama di DOKU Dashboard.`;
+  if (e && e.code === 'invalid_signature') return `DOKU: tanda tangan ditolak. Secret Key tidak cocok dengan Client ID untuk lingkungan ${env}; salin keduanya dari halaman yang sama.`;
+  const m = e ? e.message : j && (j.error_messages || j.message);
+  return 'DOKU menolak permintaan: ' + (m ? [].concat(m).join('; ') : 'HTTP ' + status);
+}
+
 // Create a hosted checkout page. Returns { url, expiredDate }; throws Error(message) with DOKU's own message on failure.
 async function createCheckout({ invoice, amount, title, customer, callbackUrl, dueMinutes = 60 }) {
   const c = cfg();
@@ -40,7 +49,7 @@ async function createCheckout({ invoice, amount, title, customer, callbackUrl, d
   if (c.notifyUrl) body.additional_info = { override_notification_url: c.notifyUrl };
   const { status, j } = await call('POST', '/checkout/v1/payment', body);
   const url = j && j.response && j.response.payment && j.response.payment.url;
-  if (status !== 200 || !url) throw new Error('DOKU menolak permintaan: ' + ((j && (j.error_messages || j.message)) ? [].concat(j.error_messages || j.message).join('; ') : 'HTTP ' + status));
+  if (status !== 200 || !url) throw new Error(explain(status, j));
   return { url, expiredDate: j.response.payment.expired_date || null };
 }
 
@@ -61,4 +70,4 @@ function verifyNotification(headers, raw, targets) {
   });
 }
 
-module.exports = { cfg, enabled, sign, stamp, call, createCheckout, statusOf, verifyNotification };
+module.exports = { explain, cfg, enabled, sign, stamp, call, createCheckout, statusOf, verifyNotification };

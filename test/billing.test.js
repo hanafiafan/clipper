@@ -120,13 +120,21 @@ test('an order DOKU says is still pending is not activated; expired plans fall b
   } finally { s.stop(); d.stop(); }
 });
 
+test('credential mistakes from DOKU become actionable messages', () => {
+  const { explain } = require('../central/doku');
+  assert.match(explain(400, { error: { code: 'invalid_client_id', message: 'Invalid Client-Id' } }), /Client ID tidak dikenal.*Secret Key.*mode sandbox/);
+  assert.match(explain(400, { error: { code: 'invalid_signature' } }), /Secret Key tidak cocok/);
+  assert.match(explain(400, { error_messages: ['order.amount must greater than 0', 'x'] }), /order\.amount must greater than 0; x/);
+  assert.match(explain(500, {}), /HTTP 500/);
+});
+
 test('return page and checkout failure from DOKU', async () => {
   const d = await mockDoku(), s = await boot({ DOKU_CLIENT_ID: CID, DOKU_SECRET_KEY: 'SK-not-what-the-mock-expects', PUBLIC_URL: 'https://clipper.example/api', DOKU_BASE: d.base });
   try {
     const page = await fetch(s.base + '/billing/return?inv=HC-X&p=3003'); assert.equal(page.status, 200);
     assert.match(page.headers.get('content-type'), /text\/html/); assert.match(page.headers.get('content-security-policy'), /default-src 'none'/);
     const t = await signup(s, 3), r = await s.j('POST', '/billing/checkout', { plan: 'pro', period: 'month' }, t);
-    assert.equal(r.status, 502); assert.match(r.j.error, /DOKU menolak/);
+    assert.equal(r.status, 424); assert.match(r.j.error, /DOKU: (Client ID|tanda tangan)|DOKU menolak/);
     assert.equal((await s.j('GET', '/billing/orders', null, t)).j.orders[0].status, 'failed');
   } finally { s.stop(); d.stop(); }
 });
