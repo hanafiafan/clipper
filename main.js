@@ -7,6 +7,7 @@ const path = require('path');
 const http = require('http');
 const net = require('net');
 const fs = require('fs');
+const updater = require('./lib/updater');   // shared with server.js (same module instance): release check + install
 
 let url = '', tray = null, lastOpen = 0;
 
@@ -54,14 +55,32 @@ function trayImage() {
 
 const loginSettings = () => app.getLoginItemSettings({ args: ['--hidden'] });
 function buildMenu() {
+  const up = updater.status();
   return Menu.buildFromTemplate([
+    ...(up.available ? [{ label: `Perbarui ke versi ${up.latest}…`, click: openUI }, { type: 'separator' }] : []),
     { label: 'Buka Hellens Clipper', click: openUI },
     { label: url.replace('http://', ''), enabled: false },
     { type: 'separator' },
+    { label: 'Periksa pembaruan', click: () => checkForUpdate({ force: true, say: true }) },
     { label: 'Jalankan saat login', type: 'checkbox', checked: loginSettings().openAtLogin, click: m => app.setLoginItemSettings({ openAtLogin: m.checked, args: ['--hidden'] }) },
     { type: 'separator' },
     { label: 'Keluar', click: () => app.quit() },
   ]);
+}
+
+// Native notification when a newer release exists (once per version), so people who never open the studio still hear about it.
+// Clicking it opens the studio, which shows the update popup. `say` is for the manual "Periksa pembaruan" menu item.
+async function checkForUpdate({ force = false, say = false } = {}) {
+  let v; try { v = await updater.check({ force }); } catch { return; }
+  if (tray) tray.setContextMenu(buildMenu());
+  if (!Notification.isSupported()) return;
+  const seenFile = path.join(app.getPath('userData'), 'update-notified');
+  if (v.available) {
+    const seen = fs.existsSync(seenFile) ? fs.readFileSync(seenFile, 'utf8') : '';
+    if (!say && seen === v.latest) return;
+    const n = new Notification({ title: `Pembaruan tersedia: Hellens Clipper ${v.latest}`, body: `Kamu memakai versi ${v.current}. Klik untuk membuka dan memperbarui.` });
+    n.on('click', openUI); n.show(); fs.writeFileSync(seenFile, v.latest);
+  } else if (say) new Notification({ title: 'Hellens Clipper sudah versi terbaru', body: `Versi ${v.current}` }).show();
 }
 
 // Tell the user once where the app went, since it has no window or Dock icon.
@@ -88,6 +107,7 @@ if (!app.requestSingleInstanceLock()) {
     process.env.PORT = String(port);
     url = `http://127.0.0.1:${port}`;
     require('./server.js');                           // starts listening on PORT
+    global.klipQuit = () => { app.quit(); setTimeout(() => app.exit(0), 1500); };   // used by the updater once a replacement is queued
 
     tray = new Tray(trayImage());
     tray.setToolTip('Hellens Clipper');
@@ -99,5 +119,6 @@ if (!app.requestSingleInstanceLock()) {
     const atLogin = process.argv.includes('--hidden') || app.getLoginItemSettings().wasOpenedAtLogin;
     if (!atLogin) openUI();                           // started by hand: show the login page; at login: stay quiet
     announceOnce();
+    setTimeout(checkForUpdate, 4000); setInterval(checkForUpdate, 6 * 36e5);
   });
 }

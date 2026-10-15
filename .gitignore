@@ -28,3 +28,7 @@ models/
 # Database server pusat
 central/*.db*
 .local/
+
+# Per-install data written next to the app in development
+presets.json
+updates/

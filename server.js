@@ -2,10 +2,14 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { chunkTranscript, dedupeClips } = require('./lib/transcript');
 const { execFile } = require('child_process');
+const { AsyncLocalStorage } = require('async_hooks');
+const { zipTo } = require('./lib/zip');
+const updater = require('./lib/updater');
 // Writable data root — set KLIP_DATA when packaged (app folder is read-only); defaults to this dir in dev.
 const DATA = process.env.KLIP_DATA || __dirname;
 const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path.join(DATA, 'logos'), MEDIA = path.join(DATA, 'media'), DL = path.join(DATA, 'downloads');
 const PORT = process.env.PORT || 3002;
+updater.configure({ dir: path.join(DATA, 'updates'), current: require('./package.json').version });
 const MAX_UPLOAD = (+process.env.MAX_UPLOAD_MB || 2048) * 1048576; // batas unggah video (MB)
 [WORK, OUT, LOGOS, MEDIA, DL].forEach(d => fs.mkdirSync(d, { recursive: true }));
 
@@ -95,10 +99,13 @@ const PRESETS = {
   clean: 'FontName=Arial,FontSize=12,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Bold=1,Alignment=2,MarginV=50',
   boxed: 'FontName=Arial,FontSize=11,PrimaryColour=&H00000000,OutlineColour=&H00000000,BackColour=&H00FFFFFF,BorderStyle=3,Outline=0,Shadow=0,Bold=1,Alignment=2,MarginV=45',
 };
+// Child processes started inside a job are registered on that job (AsyncLocalStorage) so DELETE /auto/:id can kill them.
+const jobCtx = new AsyncLocalStorage();
+const track = child => { const c = jobCtx.getStore(); if (c) { c.procs.add(child); child.on('close', () => c.procs.delete(child)); } return child; };
 const run = (cmd, args, cwd) => new Promise((ok, no) =>
-  execFile(cmd, args, { cwd, maxBuffer: 1 << 26 }, (e, _o, err) => e ? no(new Error(err.slice(-300) || e.message)) : ok()));
+  track(execFile(cmd, args, { cwd, maxBuffer: 1 << 26 }, (e, _o, err) => e ? no(new Error(err.slice(-300) || e.message)) : ok())));
 const runOut = (cmd, args) => new Promise((ok, no) => // like run but returns stdout
-  execFile(cmd, args, { maxBuffer: 1 << 24 }, (e, out, err) => e ? no(new Error((err || e.message).slice(-300))) : ok(out)));
+  track(execFile(cmd, args, { maxBuffer: 1 << 24 }, (e, out, err) => e ? no(new Error((err || e.message).slice(-300))) : ok(out))));
 // Render a rounded pill badge (text+emoji) to a transparent PNG via headless Chrome (scripts/badge.js).
 const renderBadge = (outPng, cfg) => new Promise((ok, no) =>
   execFile(process.execPath, [path.join(__dirname, 'scripts', 'badge.js'), outPng, JSON.stringify(cfg)],
@@ -190,7 +197,7 @@ async function fullTranscript(id) {
 // Model default bisa diganti tanpa edit kode: <PROVIDER>_MODEL (mis. CLAUDE_MODEL, GROQ_MODEL).
 const PROVIDERS = {
   gemini:   { env: 'GEMINI_API_KEY',    model: 'gemini-2.5-flash' },
-  openai:   { env: 'OPENAI_API_KEY',    model: 'gpt-4o',                    base: 'https://api.openai.com/v1' },
+  openai:   { env: 'OPENAI_API_KEY',    model: 'gpt-4o',                    base: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1' },
   claude:   { env: 'ANTHROPIC_API_KEY', model: 'claude-sonnet-5-5' },
   groq:     { env: 'GROQ_API_KEY',      model: 'llama-3.3-70b-versatile',   base: 'https://api.groq.com/openai/v1' },
   mistral:  { env: 'MISTRAL_API_KEY',   model: 'mistral-large-latest',      base: 'https://api.mistral.ai/v1' },
@@ -252,18 +259,38 @@ const HIST = path.join(DATA, 'history.json');
 // ponytail: naive read-modify-write; fine for single local user, add a lock if clips run in parallel.
 const readHist = () => { try { return JSON.parse(fs.readFileSync(HIST, 'utf8')); } catch { return []; } };
 const writeHist = h => fs.writeFileSync(HIST, JSON.stringify(h, null, 2));
+const PRESETS_FILE = path.join(DATA, 'presets.json');
+const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review'];
+const readPresets = () => { try { const v = JSON.parse(fs.readFileSync(PRESETS_FILE, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
+const writePresets = v => fs.writeFileSync(PRESETS_FILE, JSON.stringify(v, null, 2));
 const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
   gif: 'image/gif', webp: 'image/webp', ico: 'image/x-icon', ttf: 'font/ttf', woff2: 'font/woff2', mp4: 'video/mp4', mp3: 'audio/mpeg', srt: 'text/plain; charset=utf-8',
   ass: 'text/plain; charset=utf-8', json: 'application/json' };
-const serve = (res, dir, name) => { // basename blocks ../ traversal
+const serve = (res, dir, name, req) => { // basename blocks ../ traversal; pass req to answer Range requests (video seeking and trim preview)
   const f = path.join(dir, path.basename(name));
   if (!fs.existsSync(f)) return json(res, 404, { error: 'not found' });
   // Content-Type wajib: browser menolak SVG (favicon / <img>) tanpa image/svg+xml. Header yang sudah diset pemanggil dihormati.
   if (!res.getHeader('Content-Type')) res.setHeader('Content-Type', MIME[path.extname(f).slice(1).toLowerCase()] || 'application/octet-stream');
-  res.writeHead(200); fs.createReadStream(f).pipe(res);
+  const size = fs.statSync(f).size, m = req && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  res.setHeader('Accept-Ranges', 'bytes');
+  if (m && (m[1] || m[2])) {
+    const a = m[1] === '' ? Math.max(size - +m[2], 0) : +m[1], b = m[1] === '' || m[2] === '' ? size - 1 : Math.min(+m[2], size - 1);
+    if (!(a <= b && a < size)) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end(); }
+    res.writeHead(206, { 'Content-Range': `bytes ${a}-${b}/${size}`, 'Content-Length': b - a + 1 }); return fs.createReadStream(f, { start: a, end: b }).pipe(res);
+  }
+  res.writeHead(200, { 'Content-Length': size }); fs.createReadStream(f).pipe(res);
 };
 
 const jobs = {}; // in-memory auto-pilot jobs. ponytail: fine for single local user; use a store if multi-user.
+const jobPriv = {}; // per job, never sent to the browser: { procs, resume, clips }
+// Jobs run one at a time (ffmpeg/Whisper saturate the machine). A job waiting for the user's review holds no slot.
+// ponytail: MAX_JOBS=1; raise only on machines with cores to spare.
+const MAX_JOBS = +process.env.MAX_JOBS || 1, queue = []; let active = 0;
+const pump = () => { while (active < MAX_JOBS && queue.length) { const t = queue.shift(); active++; t.fn().finally(() => { active--; pump(); }); } };
+const enqueue = (J, fn) => { queue.push({ J, fn }); pump(); };
+const queuePos = J => queue.findIndex(t => t.J === J) + 1; // 0 = not waiting
+const dequeue = J => { const i = queue.findIndex(t => t.J === J); if (i >= 0) queue.splice(i, 1); };
+const jobView = J => ({ ...J, queue: queuePos(J) });
 // Retensi: work/ menampung video sumber + file antara dan tak pernah dibersihkan (bisa GB). Hapus yang lebih tua dari
 // WORK_TTL_DAYS (default 7) tiap jam, dan buang job selesai >1 jam dari memori. Klip hasil di out/ tidak disentuh.
 // ponytail: berdasar umur file saja; klip lama tak bisa dirender ulang dari sumber yang sudah dihapus.
@@ -271,7 +298,8 @@ const WORK_TTL = (+process.env.WORK_TTL_DAYS || 7) * 864e5;
 function cleanup() {
   const cut = Date.now() - WORK_TTL;
   for (const f of fs.readdirSync(WORK)) { try { const p = path.join(WORK, f); if (fs.statSync(p).mtimeMs < cut) fs.unlinkSync(p); } catch {} }
-  for (const id in jobs) if (jobs[id].status !== 'running' && Date.now() - jobs[id].at > 36e5) delete jobs[id];
+  for (const id in jobs) { const J = jobs[id], wait = ['queued', 'review'].includes(J.status); // finished jobs live 1 h, ones waiting for the user 24 h
+    if (J.status !== 'running' && Date.now() - J.at > (wait ? 864e5 : 36e5)) { delete jobs[id]; delete jobPriv[id]; } }
 }
 cleanup(); setInterval(cleanup, 36e5).unref();
 const scoreGrade = s => s == null ? null : s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 55 ? 'C' : 'D';
@@ -408,17 +436,19 @@ http.createServer(async (req, res) => {
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     const tok = cookieTok(req);
-    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
-      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status'].includes(act.slice(6))) { // peran dicek di pusat
+      if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status', 'orders'].includes(act.slice(6))) { // peran dicek di pusat
         const r = await askCentral('/' + act + u.search, tok, req.method === 'POST' ? await body(req) : undefined); // u.search: kursor audit (?before=)
         if (req.method === 'POST' && r.status === 200) { sessions.clear(); contentCache.at = 0; } // plan/role/konten berubah -> segarkan cache
         return json(res, r.status, r.j);
       }
       if (req.method === 'GET' && act === 'content') { const r = await askCentral('/content'); return json(res, r.status, r.j); }
+      if (act === 'billing/checkout' && req.method === 'POST') { const r = await askCentral('/billing/checkout', tok, { ...(await body(req)), app_port: +PORT }); return json(res, r.status, r.j); }   // pusat tahu ke port mana tombol "kembali ke aplikasi" mengarah
+      if (act === 'billing/orders' && req.method === 'GET') { const r = await askCentral('/billing/orders', tok); return json(res, r.status, r.j); }
       if (req.method === 'GET' && act === 'plans') { const r = await askCentral('/plans'); return json(res, r.status, r.j); }
-      if (req.method === 'GET' && act === 'me') { const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
+      if (req.method === 'GET' && act === 'me') { if (u.searchParams.get('fresh') && tok) sessions.delete(tok); const user = await userFor(req); return user ? json(res, 200, { user }) : json(res, 401, { error: 'Belum login' }); }
       if (req.method === 'POST' && ['login', 'register', 'logout', 'password'].includes(act)) {
         const r = await askCentral('/' + act, tok, await body(req));
         if (act === 'logout') { sessions.delete(tok); setCookie(res, ''); return json(res, 200, { ok: true }); }
@@ -432,12 +462,12 @@ http.createServer(async (req, res) => {
       if (!user) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
       res.setHeader('Cache-Control', 'no-store'); return serve(res, STUDIO, 'index.html');
     }
-    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js')) return serve(res, STUDIO, path.basename(u.pathname));
+    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js')) return serve(res, STUDIO, path.basename(u.pathname));
     if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8));
-    if (req.method === 'GET' && u.pathname.startsWith('/src/')) return serve(res, WORK, u.pathname.slice(5));
-    if (req.method === 'GET' && u.pathname.startsWith('/out/')) return serve(res, OUT, u.pathname.slice(5));
+    if (req.method === 'GET' && u.pathname.startsWith('/src/')) return serve(res, WORK, u.pathname.slice(5), req);
+    if (req.method === 'GET' && u.pathname.startsWith('/out/')) return serve(res, OUT, u.pathname.slice(5), req);
     if (req.method === 'GET' && u.pathname.startsWith('/brand/')) return serve(res, path.join(__dirname, 'brand'), u.pathname.slice(7));
     if (req.method === 'GET' && u.pathname.startsWith('/fonts/')) return serve(res, FONTSDIR, u.pathname.slice(7));
     if (req.method === 'GET' && u.pathname.startsWith('/logos/')) return serve(res, LOGOS, u.pathname.slice(7));
@@ -532,11 +562,58 @@ http.createServer(async (req, res) => {
       return json(res, 200, { clips });
     }
     if (req.method === 'GET' && u.pathname === '/history') return json(res, 200, { history: readHist() });
+    const dropFiles = key => { for (const ext of ['.mp4', '.srt', '.ass', '.stk.png']) { const f = path.join(OUT, path.basename(key) + ext); if (fs.existsSync(f)) fs.unlinkSync(f); } };
+    const keysOf = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(String).filter(k => /^[\w-]{1,80}$/.test(k)).slice(0, 500);
+    if (req.method === 'GET' && u.pathname === '/history/zip') { // ?keys=a,b,c -> satu ZIP berisi klip (+ caption .txt dan .srt bila ada)
+      const hist = readHist(), want = new Set(keysOf(u.searchParams.get('keys'))), used = new Set(), entries = [];
+      const unique = n => { let k = n, i = 2; while (used.has(k)) k = n.replace(/(\.[^.]+)$/, ` (${i++})$1`); used.add(k); return k; };
+      for (const r of hist.filter(r => want.has(r.key))) {
+        const mp4 = path.join(OUT, path.basename(r.key) + '.mp4'); if (!fs.existsSync(mp4)) continue;
+        const stem = String(r.title || r.key).replace(/[^\w\- ]+/g, '').trim().slice(0, 60) || r.key;
+        entries.push({ name: unique(stem + '.mp4'), file: mp4 });
+        const cap = [r.title, r.description, (r.hashtags || []).join(' ')].filter(Boolean).join('\n\n');
+        if (cap) { const t = path.join(WORK, 'cap-' + r.key + '.txt'); fs.writeFileSync(t, cap); entries.push({ name: unique(stem + '.txt'), file: t }); }
+        const sub = r.srt && path.join(OUT, path.basename(r.srt)); if (sub && fs.existsSync(sub)) entries.push({ name: unique(stem + path.extname(sub)), file: sub });
+      }
+      if (!entries.length) return json(res, 404, { error: 'tidak ada klip untuk diunduh' });
+      res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="hellens-clips-${new Date().toISOString().slice(0, 10)}.zip"` });
+      await zipTo(res, entries); return;
+    }
+    if (req.method === 'POST' && u.pathname === '/history/delete') { // hapus banyak sekaligus: {keys:[...]}
+      const want = new Set(keysOf((await body(req)).keys)), h = readHist();
+      h.filter(r => want.has(r.key)).forEach(r => dropFiles(r.key)); writeHist(h.filter(r => !want.has(r.key)));
+      return json(res, 200, { ok: true, removed: h.length - readHist().length });
+    }
+    if (req.method === 'PATCH' && u.pathname.startsWith('/history/')) { // {fav: true|false}
+      const key = decodeURIComponent(u.pathname.slice(9)), { fav } = await body(req), h = readHist(), rec = h.find(r => r.key === key);
+      if (!rec) return json(res, 404, { error: 'klip tidak ada' });
+      if (fav) rec.fav = true; else delete rec.fav;
+      writeHist(h); return json(res, 200, { ok: true, fav: !!rec.fav });
+    }
     if (req.method === 'DELETE' && u.pathname.startsWith('/history/')) {
       const key = decodeURIComponent(u.pathname.slice(9));
       const h = readHist(); const rec = h.find(r => r.key === key);
-      if (rec) { for (const ext of ['.mp4', '.srt', '.ass', '.stk.png']) { const f = path.join(OUT, path.basename(key) + ext); if (fs.existsSync(f)) fs.unlinkSync(f); } writeHist(h.filter(r => r.key !== key)); }
+      if (rec) { dropFiles(key); writeHist(h.filter(r => r.key !== key)); }
       return json(res, 200, { ok: true });
+    }
+    // --- Pembaruan aplikasi: cek rilis terbaru di GitHub, unduh + verifikasi checksum + pasang (lib/updater.js) ---
+    if (req.method === 'GET' && u.pathname === '/update') return json(res, 200, await updater.check({ force: u.searchParams.get('force') === '1' }));
+    if (req.method === 'POST' && u.pathname === '/update/install') {
+      try { await updater.install({ quit: () => global.klipQuit && global.klipQuit() }); return json(res, 200, updater.status()); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+    }
+    // --- Preset: kombinasi pengaturan Auto yang disimpan dengan nama (satu berkas JSON, hanya nilai sederhana) ---
+    if (req.method === 'GET' && u.pathname === '/presets') return json(res, 200, { presets: readPresets() });
+    if (req.method === 'POST' && u.pathname === '/presets') {
+      const { name, cfg } = await body(req), nm = String(name || '').trim().slice(0, 40);
+      if (!nm || !cfg || typeof cfg !== 'object') return json(res, 400, { error: 'Beri nama preset.' });
+      const clean = {}; for (const k of PRESET_KEYS) if (['string', 'number', 'boolean'].includes(typeof cfg[k])) clean[k] = typeof cfg[k] === 'string' ? cfg[k].slice(0, 40) : cfg[k];
+      const all = readPresets().filter(x => x.name.toLowerCase() !== nm.toLowerCase()); all.unshift({ name: nm, cfg: clean, at: Date.now() });
+      writePresets(all.slice(0, 30)); return json(res, 200, { presets: readPresets() });
+    }
+    if (req.method === 'DELETE' && u.pathname.startsWith('/presets/')) {
+      const nm = decodeURIComponent(u.pathname.slice(9)).toLowerCase(); writePresets(readPresets().filter(x => x.name.toLowerCase() !== nm));
+      return json(res, 200, { presets: readPresets() });
     }
     if (req.method === 'POST' && u.pathname === '/clip') {
       const p = await body(req);
@@ -564,57 +641,103 @@ http.createServer(async (req, res) => {
       if (!(resolution in RES) || !(preset in PRESETS) || (!useSpec && !(mode in FORMATS))) return json(res, 400, { error: 'bad options' });
       if (!resAllowed(user, resolution)) return json(res, 403, { error: `Resolusi ${resolution} tidak tersedia di plan ${user.limits.name}.` });
       if (!availableProviders().length) return json(res, 400, { error: 'Set API key AI (Gemini/OpenAI/…) dulu untuk analisis otomatis' });
-      const jobId = newId();
-      jobs[jobId] = { status: 'running', step: 'Menyiapkan…', clips: [], total: 0, done: 0 };
+      const jobId = newId(), now = Date.now();
+      const J = jobs[jobId] = { id: jobId, owner: user.email, status: 'queued', stage: 'queue', step: 'Menunggu antrean…', label: p.id ? 'Video unggahan' : p.url, review: !!p.review,
+        clips: [], candidates: null, srcId: p.id || null, total: 0, done: 0, created: now, at: now };
+      const priv = jobPriv[jobId] = { procs: new Set(), resume: null, clips: null };
       json(res, 200, { jobId });
       // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
       const count = user.limits.clipsPerJob;
-      (async () => { const J = jobs[jobId];
-        try {
-          const content = await getContent(), srcId = p.id || newId();
-          J.step = 'Mengunduh video dari YouTube…';
-          if (!p.id) await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
-            .catch(() => { throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
-          J.step = 'Transkripsi + analisis AI (cari momen viral)…';
-          const norm = c => { const segs = (Array.isArray(c.timelines) ? c.timelines : [{ start: c.start, end: c.end }])
-            .map(s => ({ start: +s.start, end: +s.end })).filter(s => s.start >= 0 && s.end > s.start);
-            return segs.length ? { ...c, segs } : null; };
-          // Video panjang dianalisis per bagian (tiap bagian ~40k karakter) lalu digabung; video biasa = 1 panggilan.
-          const parts = chunkTranscript(await fullTranscript(srcId));
-          let clips = [];
-          for (let k = 0; k < parts.length; k++) {
-            if (parts.length > 1) J.step = `Analisis AI bagian ${k + 1}/${parts.length}…`;
-            const txt = await askLLM(AUTO_PROMPT(parts[k]), p.provider);
-            try { clips.push(...JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1)).map(norm).filter(Boolean)); }
-            catch { throw new Error('AI mengembalikan format tak terbaca. Coba lagi atau ganti provider.'); }
-          }
-          if (!clips.length) throw new Error('AI tidak menemukan momen yang cocok di video ini.');
-          clips = dedupeClips(clips).slice(0, count); // skor tertinggi dulu, tanpa klip yang saling tumpang tindih
-          J.total = clips.length;
-          for (let i = 0; i < clips.length; i++) { const c = clips[i];
-            J.step = `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`;
-            const focal = Number.isFinite(+c.face_x) && Number.isFinite(+c.face_y) ? { x: +c.face_x, y: +c.face_y } : null;
-            const hookTxt = String(c.hook || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); // ringkas: ≤4 kata / 24 char
-            const hookStyles = content.hook_styles, hs = hookStyles[p.hookStyle] || Object.values(hookStyles)[0];
-            const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, bg: hs.bg, color: hs.color, rounded: hs.rounded } : null;
-            let clipSrc = srcId, start = c.segs[0].start, end = c.segs[0].end;
-            if (c.segs.length > 1) { clipSrc = await concatSegments(srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
-            await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
-            const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
-            const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-              wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker,
-              meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
-                reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
-              .catch(async err => { await refund(tok, 1); throw err; });
-            J.clips.push(rec); J.done = i + 1;
-          }
-          J.step = 'Selesai'; J.status = 'done'; J.at = Date.now();
-        } catch (err) { J.status = 'error'; J.error = err.message; J.failStep = J.step; J.at = Date.now(); }
-      })();
+      const chk = () => { if (J.cancelled) throw new Error('dibatalkan'); };
+      const stage = (s, text) => { J.stage = s; J.step = text; };
+      // Wrap a phase so it runs in the job's process-tracking context and reports failure/cancel on the job.
+      const task = fn => async () => {
+        J.status = 'running';
+        try { await jobCtx.run(priv, fn); }
+        catch (err) { J.at = Date.now(); if (J.cancelled) { J.status = 'cancelled'; J.step = 'Dibatalkan'; } else { J.status = 'error'; J.error = err.message; J.failStep = J.step; } }
+      };
+      const render = async clips => {
+        const content = await getContent();
+        J.total = clips.length; J.done = 0;
+        for (let i = 0; i < clips.length; i++) { const c = clips[i]; chk();
+          stage('render', `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`);
+          const focal = Number.isFinite(+c.face_x) && Number.isFinite(+c.face_y) ? { x: +c.face_x, y: +c.face_y } : null;
+          const hookTxt = String(c.hook || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); // ringkas: ≤4 kata / 24 char
+          const hookStyles = content.hook_styles, hs = hookStyles[p.hookStyle] || Object.values(hookStyles)[0];
+          const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, bg: hs.bg, color: hs.color, rounded: hs.rounded } : null;
+          let clipSrc = J.srcId, start = c.segs[0].start, end = c.segs[0].end;
+          if (c.segs.length > 1) { clipSrc = await concatSegments(J.srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
+          await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
+          const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
+          const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
+            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker,
+            meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
+              reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
+            .catch(async err => { await refund(tok, 1); throw err; });
+          J.clips.push(rec); J.done = i + 1;
+        }
+        stage('done', 'Selesai'); J.status = 'done'; J.at = Date.now();
+      };
+      priv.resume = picked => { J.status = 'queued'; stage('queue', 'Menunggu antrean…'); enqueue(J, task(() => render(picked))); };
+      const analyze = async () => {
+        const srcId = J.srcId || newId(); J.srcId = srcId;
+        if (!p.id) {
+          stage('download', 'Mengunduh video dari YouTube…');
+          runOut('yt-dlp', ['--no-warnings', '--print', '%(title)s', '--skip-download', '--', p.url]).then(t => { J.label = t.trim().split('\n')[0] || J.label; }).catch(() => {});
+          await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
+            .catch(() => { chk(); throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
+        }
+        chk(); stage('analyze', 'Transkripsi + analisis AI (cari momen viral)…');
+        const norm = c => { const segs = (Array.isArray(c.timelines) ? c.timelines : [{ start: c.start, end: c.end }])
+          .map(s => ({ start: +s.start, end: +s.end })).filter(s => s.start >= 0 && s.end > s.start);
+          return segs.length ? { ...c, segs } : null; };
+        // Video panjang dianalisis per bagian (tiap bagian ~40k karakter) lalu digabung; video biasa = 1 panggilan.
+        const parts = chunkTranscript(await fullTranscript(srcId));
+        let clips = [];
+        for (let k = 0; k < parts.length; k++) { chk();
+          if (parts.length > 1) J.step = `Analisis AI bagian ${k + 1}/${parts.length}…`;
+          const txt = await askLLM(AUTO_PROMPT(parts[k]), p.provider);
+          try { clips.push(...JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1)).map(norm).filter(Boolean)); }
+          catch { throw new Error('AI mengembalikan format tak terbaca. Coba lagi atau ganti provider.'); }
+        }
+        if (!clips.length) throw new Error('AI tidak menemukan momen yang cocok di video ini.');
+        clips = dedupeClips(clips).slice(0, count); // skor tertinggi dulu, tanpa klip yang saling tumpang tindih
+        chk();
+        if (p.review) { // tinjau dulu: berhenti di sini, lepas slot antrean, lanjut lewat POST /auto/:id/render
+          priv.clips = clips;
+          J.candidates = clips.map((c, i) => ({ ...c, i, grade: c.grade || scoreGrade(c.score) }));
+          J.total = clips.length; stage('review', 'Pilih dan atur momen sebelum render'); J.status = 'review'; J.at = Date.now(); return;
+        }
+        await render(clips);
+      };
+      enqueue(J, task(analyze));
       return;
     }
+    if (req.method === 'POST' && /^\/auto\/[a-f0-9]{12}\/render$/.test(u.pathname)) { // klip hasil tinjauan: potongan, judul, dan hook boleh sudah diedit
+      const id = u.pathname.split('/')[2], J = jobs[id], priv = jobPriv[id];
+      if (!J || J.owner !== user.email) return json(res, 404, { error: 'job tidak ada' });
+      if (J.status !== 'review') return json(res, 409, { error: 'job tidak sedang menunggu tinjauan' });
+      const { clips: sel } = await body(req), seen = new Set(), picked = [];
+      const text = (v, fallback, max) => (typeof v === 'string' ? v.trim().slice(0, max) : fallback);
+      for (const s of (Array.isArray(sel) ? sel : [])) {
+        const c = priv.clips[+s.i]; if (!c || seen.has(+s.i)) continue; seen.add(+s.i);
+        const segs = (Array.isArray(s.segs) ? s.segs : c.segs).map(g => ({ start: +g.start, end: +g.end })).filter(g => g.start >= 0 && g.end > g.start && g.end - g.start <= 900).slice(0, 8);
+        if (segs.length) picked.push({ ...c, segs, title: text(s.title, c.title, 120) || c.title, hook: text(s.hook, c.hook, 60) });
+      }
+      if (!picked.length) return json(res, 400, { error: 'Pilih minimal satu klip dengan potongan yang valid.' });
+      priv.resume(picked); return json(res, 200, { ok: true, count: picked.length });
+    }
+    if (req.method === 'GET' && u.pathname === '/auto') return json(res, 200, { jobs: Object.values(jobs).filter(j => j.owner === user.email).sort((a, b) => b.created - a.created).map(jobView) });
     if (req.method === 'GET' && u.pathname.startsWith('/auto/')) {
-      const j = jobs[u.pathname.slice(6)]; return j ? json(res, 200, j) : json(res, 404, { error: 'job tidak ada' });
+      const j = jobs[u.pathname.slice(6)]; return j && j.owner === user.email ? json(res, 200, jobView(j)) : json(res, 404, { error: 'job tidak ada' });
+    }
+    if (req.method === 'DELETE' && u.pathname.startsWith('/auto/')) { // batal: keluar dari antrean, hentikan ffmpeg/yt-dlp yang sedang jalan
+      const id = u.pathname.slice(6), j = jobs[id];
+      if (!j || j.owner !== user.email) return json(res, 404, { error: 'job tidak ada' });
+      if (['done', 'error', 'cancelled'].includes(j.status)) { delete jobs[id]; delete jobPriv[id]; return json(res, 200, { ok: true }); } // sudah selesai: buang dari daftar
+      j.cancelled = true; dequeue(j); for (const c of jobPriv[id].procs) c.kill('SIGKILL');
+      if (['queued', 'review'].includes(j.status)) { j.status = 'cancelled'; j.step = 'Dibatalkan'; j.at = Date.now(); }
+      return json(res, 200, { ok: true });
     }
     json(res, 404, { error: 'not found' });
   } catch (err) { json(res, 500, { error: err.message }); }
