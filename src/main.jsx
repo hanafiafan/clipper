@@ -15,19 +15,41 @@ function Password(){
   <form className="pwForm" onSubmit={submit}><label>Password saat ini<input type="password" autoComplete="current-password" required value={f.current} onChange={e=>setF({...f,current:e.target.value})}/></label>
    <label>Password baru (min. 8 karakter)<input type="password" autoComplete="new-password" minLength={8} required value={f.next} onChange={e=>setF({...f,next:e.target.value})}/></label>
    <button className="createBtn" disabled={busy}>{busy?'Menyimpan…':'Ganti password'}</button><p role="status" className={msg?.ok?'ok':'authErr'}>{msg?.text}</p></form></section>}
+const rp=n=>'Rp '+Number(n).toLocaleString('id-ID');
+const RANK={free:0,pro:1,enterprise:2};
+const dateId=iso=>new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 function Plans({user,copy={}}){
- const [plans,setPlans]=useState(null);
- useEffect(()=>{fetch('/auth/plans').then(r=>r.json()).then(x=>setPlans(x.plans)).catch(()=>setPlans({}))},[]);
+ const [d,setD]=useState(null),[busy,setBusy]=useState(''),[err,setErr]=useState('');
+ useEffect(()=>{fetch('/auth/plans').then(r=>r.json()).then(setD).catch(()=>setD({plans:{}}))},[]);
+ const plans=d?.plans||{},billing=d?.billing?.enabled;
  const cap=user.limits.clipsPerMonth,pct=cap?Math.min(100,user.usage.clips/cap*100):0;
+ const days=user.planUntil?Math.ceil((new Date(user.planUntil)-Date.now())/864e5):null;
+ const pay=async(plan,period)=>{setBusy(plan+period);setErr('');try{const x=await post('/auth/billing/checkout',{plan,period});location.href=x.url}catch(e){setErr(e.message);setBusy('')}};
  return <section className="panel plansPanel"><div className="panelHead"><div><small>PLAN & KUOTA · {user.usage.month}</small><h2>Plan {user.limits.name}</h2></div></div>
   <div className="meter" role="progressbar" aria-valuenow={user.usage.clips} aria-valuemax={cap||undefined}><i style={{width:pct+'%'}}/></div><small>{user.usage.clips} dari {cap??'tanpa batas'} klip terpakai bulan ini</small>
-  <div className="planGrid">{Object.entries(plans||{}).map(([id,p])=><article key={id} className={id===user.plan?'current':''}><b>{p.name}</b><small>{copy[id]?.tagline}</small><span>{copy[id]?.price}</span><span>{p.clipsPerMonth??'Tanpa batas'} klip/bulan</span><span>Resolusi hingga {p.maxResolution}</span><span>{p.clipsPerJob} klip per proses</span>{(copy[id]?.features||[]).map(f=><span key={f}>✓ {f}</span>)}{id===user.plan?<em>Plan aktif</em>:<small>Upgrade: hubungi admin</small>}</article>)}</div></section>}
+  {user.planUntil&&<p className={days<=7?'authErr':'hint'} style={{marginTop:8}}>Aktif sampai {dateId(user.planUntil)} · {days>0?days+' hari lagi':'berakhir hari ini'}</p>}
+  {err&&<p className="authErr" role="alert">{err}</p>}
+  <div className="planGrid">{Object.entries(plans).map(([id,p])=>{const can=billing&&p.price&&RANK[id]>=RANK[user.plan]&&!(id===user.plan&&!user.planUntil);
+   return <article key={id} className={id===user.plan?'current':''}><b>{p.name}</b><small>{copy[id]?.tagline}</small>
+   <span>{p.price?rp(p.price.month)+' / bulan':copy[id]?.price}</span><span>{p.clipsPerMonth??'Tanpa batas'} klip/bulan</span><span>Resolusi hingga {p.maxResolution}</span><span>{p.clipsPerJob} klip per proses</span>{(copy[id]?.features||[]).map(f=><span key={f}>✓ {f}</span>)}
+   {id===user.plan&&<em>Plan aktif</em>}
+   {can&&<div className="payBtns"><button className="createBtn" disabled={!!busy} onClick={()=>pay(id,'month')}>{busy===id+'month'?'Membuka DOKU…':(id===user.plan?'Perpanjang ':'Beli ')+'bulanan · '+rp(p.price.month)}</button>
+    <button className="createBtn alt" disabled={!!busy} onClick={()=>pay(id,'year')}>{busy===id+'year'?'Membuka DOKU…':'Tahunan · '+rp(p.price.year)}</button><small>Tahunan hemat 2 bulan</small></div>}
+   {!can&&id!==user.plan&&p.price&&!billing&&<small>Pembayaran online belum aktif. Hubungi admin.</small>}
+   {!p.price&&id!==user.plan&&RANK[id]>RANK[user.plan]&&<small>Hubungi admin untuk upgrade</small>}</article>})}</div>
+  {billing&&<small style={{display:'block',marginTop:12}}>Pembayaran diproses DOKU (QRIS, virtual account, e-wallet, kartu). Plan aktif otomatis setelah pembayaran terkonfirmasi.{d?.billing?.env==='sandbox'?' · MODE UJI (sandbox): tidak ada uang sungguhan.':''}</small>}</section>}
+function Orders(){
+ const [o,setO]=useState(null);
+ useEffect(()=>{fetch('/auth/billing/orders').then(r=>r.ok?r.json():{orders:[]}).then(x=>setO(x.orders)).catch(()=>setO([]))},[]);
+ if(!o||!o.length)return null;
+ const L={pending:'Menunggu pembayaran',paid:'Lunas',failed:'Gagal',expired:'Kedaluwarsa'};
+ return <section className="panel"><div className="panelHead"><div><small>PEMBAYARAN</small><h2>Riwayat pesanan</h2></div></div><div className="tableWrap"><table><thead><tr><th>Invoice</th><th>Plan</th><th>Periode</th><th>Nominal</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>{o.map(x=><tr key={x.invoice}><td>{x.invoice}</td><td>{x.plan}</td><td>{x.period==='year'?'Tahunan':'Bulanan'}</td><td>{rp(x.amount)}</td><td>{L[x.status]||x.status} {x.url&&<a href={x.url}>Bayar</a>}</td><td>{new Date(x.created_at).toLocaleDateString('id-ID')}</td></tr>)}</tbody></table></div></section>}
 function AccountPage({user:u0}){
  const [user,setUser]=useState(u0),[copy,setCopy]=useState({});
- useEffect(()=>{fetch('/auth/me').then(r=>r.ok?r.json():{}).then(x=>x.user&&setUser(x.user));fetch('/auth/content').then(r=>r.json()).then(x=>setCopy(x.content?.plan_copy||{})).catch(()=>{})},[]);
+ useEffect(()=>{fetch('/auth/me?fresh=1').then(r=>r.ok?r.json():{}).then(x=>x.user&&setUser(x.user));fetch('/auth/content').then(r=>r.json()).then(x=>setCopy(x.content?.plan_copy||{})).catch(()=>{})},[]);
  return <Shell user={user} kicker="AKUN // PLAN & KEAMANAN" title="Akun" lead={user.email}><div className="stack">
   <section className="panel"><div className="panelHead"><div><small>PROFIL</small><h2>{user.name}</h2></div></div><p className="hint">{user.email} · role {user.role} · plan {user.limits.name}</p></section>
-  <Plans user={user} copy={copy}/><Password/></div></Shell>}
+  <Plans user={user} copy={copy}/><Orders/><Password/></div></Shell>}
 function Admin({user}){
  const [d,setD]=useState(null),[err,setErr]=useState(''),[tab,setTab]=useState('users');
  const get=p=>fetch('/auth/admin/'+p).then(r=>r.json());
@@ -40,14 +62,20 @@ function Admin({user}){
  const max=Math.max(1,...d.st.months.map(m=>m.clips));
  return <Shell user={user} kicker="ADMIN // KONTROL" title="Admin" lead="Pengguna, plan, kuota, audit, dan konten."><div className="adminPage">
   {err&&<p className="authErr" role="alert">{err}</p>}
-  <div className="tabs" role="tablist">{[['users','User & statistik'],['cms','CMS']].map(([k,l])=><button key={k} role="tab" aria-selected={tab===k} className={tab===k?'selected':''} onClick={()=>setTab(k)}>{l}</button>)}</div>
-  {tab==='cms'?<Cms setErr={setErr}/>:<>
+  <div className="tabs" role="tablist">{[['users','User & statistik'],['orders','Pembayaran'],['cms','CMS']].map(([k,l])=><button key={k} role="tab" aria-selected={tab===k} className={tab===k?'selected':''} onClick={()=>setTab(k)}>{l}</button>)}</div>
+  {tab==='cms'?<Cms setErr={setErr}/>:tab==='orders'?<AdminOrders setErr={setErr}/>:<>
   <div className="statRow"><div className="panel"><small>Total user</small><strong>{d.st.users}</strong></div><div className="panel"><small>Klip bulan ini</small><strong>{d.st.clipsThisMonth}</strong></div>{['free','pro','enterprise'].map(p=><div className="panel" key={p}><small>Plan {p}</small><strong>{d.st.byPlan[p]||0}</strong></div>)}</div>
   <section className="panel"><h2>Pemakaian 6 bulan terakhir</h2><div className="bars">{d.st.months.length?d.st.months.map(m=><div key={m.month}><i style={{height:Math.max(4,m.clips/max*100)+'%'}}/><b>{m.clips}</b><small>{m.month}</small></div>):<small>Belum ada pemakaian.</small>}</div></section>
   <section className="panel"><h2>User</h2><div className="tableWrap"><table><thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Plan</th><th>Klip bulan ini</th><th>Status</th></tr></thead><tbody>{d.users.map(x=><tr key={x.id} className={x.disabled?'off':''}><td>{x.name}</td><td>{x.email}</td>
    <td><select aria-label={'Role '+x.email} value={x.role} disabled={user.role!=='owner'||x.id===user.id} onChange={e=>change('role',x.id,e.target.value)}>{['owner','admin','member'].map(r=><option key={r}>{r}</option>)}</select></td>
    <td><select aria-label={'Plan '+x.email} value={x.plan} onChange={e=>change('plan',x.id,e.target.value)}>{['free','pro','enterprise'].map(r=><option key={r}>{r}</option>)}</select></td><td>{x.clips}</td><td>{x.disabled?'Nonaktif':'Aktif'} {x.id!==user.id&&<button className="pill planPill" onClick={()=>setStatus(x,!x.disabled)}>{x.disabled?'Aktifkan':'Nonaktifkan'}</button>}</td></tr>)}</tbody></table></div></section>
   <section className="panel"><h2>Audit log</h2><div className="tableWrap"><table><thead><tr><th>Waktu</th><th>Aktor</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>{d.audit.map(a=><tr key={a.id}><td>{new Date(a.at).toLocaleString('id-ID')}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td>{a.detail}</td></tr>)}</tbody></table></div>{d.more&&<button className="pill planPill" onClick={more}>Muat lebih banyak</button>}</section></>}</div></Shell>}
+function AdminOrders({setErr}){
+ const [d,setD]=useState(null);
+ useEffect(()=>{fetch('/auth/admin/orders').then(r=>r.json()).then(x=>{if(x.error)throw Error(x.error);setD(x)}).catch(e=>setErr(e.message))},[]);
+ if(!d)return <p className="hint">Memuat…</p>;
+ return <><div className="statRow"><div className="panel"><small>Pendapatan (lunas)</small><strong>{rp(d.revenue)}</strong></div><div className="panel"><small>Pesanan lunas</small><strong>{d.orders.filter(o=>o.status==='paid').length}</strong></div><div className="panel"><small>Menunggu</small><strong>{d.orders.filter(o=>o.status==='pending').length}</strong></div></div>
+ <section className="panel"><h2>Pesanan terbaru</h2><div className="tableWrap"><table><thead><tr><th>Invoice</th><th>Email</th><th>Plan</th><th>Periode</th><th>Nominal</th><th>Status</th><th>Dibuat</th><th>Lunas</th></tr></thead><tbody>{d.orders.map(o=><tr key={o.invoice}><td>{o.invoice}</td><td>{o.email}</td><td>{o.plan}</td><td>{o.period==='year'?'Tahunan':'Bulanan'}</td><td>{rp(o.amount)}</td><td>{o.status}</td><td>{new Date(o.created_at).toLocaleString('id-ID')}</td><td>{o.paid_at?new Date(o.paid_at).toLocaleString('id-ID'):'—'}</td></tr>)}</tbody></table></div>{!d.orders.length&&<small>Belum ada pesanan.</small>}</section></>}
 function Cms({setErr}){
  const [c,setC]=useState(null),[msg,setMsg]=useState('');
  useEffect(()=>{fetch('/auth/content').then(r=>r.json()).then(x=>setC(x.content))},[]);

@@ -15,6 +15,13 @@ services:
       CENTRAL_DB: /data/central.db
       TRUST_PROXY: "1"        # real client IP from Cloudflare/Traefik headers (lockout + signup throttle)
       NO_AUTO_OWNER: "1"      # nobody becomes owner by registering first; promote with cli.js
+      # DOKU payments. Secrets come from /opt/clipper-central/.env on the server (chmod 600, never in git); compose reads it automatically.
+      #   DOKU_CLIENT_ID=MCH-xxxx   DOKU_SECRET_KEY=SK-xxxx   DOKU_ENV=sandbox|production
+      DOKU_CLIENT_ID: ${DOKU_CLIENT_ID:-}
+      DOKU_SECRET_KEY: ${DOKU_SECRET_KEY:-}
+      DOKU_ENV: ${DOKU_ENV:-sandbox}
+      PUBLIC_URL: https://clipper.hellens.dev/api    # where DOKU redirects the customer back (…/billing/return)
+      DOKU_NOTIFY_URL: https://clipper.hellens.dev/api/billing/doku/notify   # sent with every order, so no Back Office setting is needed
     volumes:
       - ./app:/app:ro
       - /var/lib/clipper-central:/data

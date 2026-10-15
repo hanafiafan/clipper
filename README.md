@@ -159,6 +159,43 @@ caption di app terpaket, ratakan whisper + dylib-nya dulu:
 bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 ```
 
+## Pembaruan aplikasi
+
+Setiap salinan yang terpasang memeriksa **rilis terbaru di GitHub** (`hanafiafan/clipper`) beberapa detik setelah dibuka lalu tiap 6 jam:
+
+- **Notifikasi sistem** sekali per versi ("Pembaruan tersedia: Hellens Clipper x.y.z"); klik membuka studio. Menu tray punya **Periksa pembaruan** dan, bila ada versi baru, **Perbarui ke versi x.y.z…**.
+- **Popup di studio** menampilkan catatan rilis dengan tombol **Perbarui sekarang**, **Nanti** (diam 6 jam), dan **Lewati versi ini**; sesudah itu pil **⬆ Update** tetap ada di strip atas.
+- **Perbarui sekarang** mengunduh installer rilis, memverifikasinya terhadap `SHA256SUMS.txt` (tanpa checksum yang cocok pemasangan dibatalkan), lalu: macOS menukar `/Applications/Hellens Clipper.app` dan membukanya lagi (skrip `lib/updater.js` menunggu aplikasi keluar dulu, dan app lama tetap utuh bila ada yang gagal); Windows menjalankan installer-nya. Data (riwayat, API key, preset) ada di luar aplikasi dan tidak tersentuh.
+- Bila aplikasi berjalan dari folder yang tidak bisa ditulis, atau rilisnya tidak punya installer untuk platform itu, popup menawarkan tautan ke halaman rilis.
+
+**Merilis versi baru**: naikkan `version` di `package.json`, commit dan push, `npm run dist:mac`, lalu `bash scripts/publish-release.sh "catatan rilis"` (butuh `gh`). Skrip mengunggah installer dengan nama baku (`Hellens-Clipper-macOS-arm64.dmg`, `Hellens-Clipper-Windows-x64-Setup.exe`) plus `SHA256SUMS.txt`, nama yang sama dipakai tombol unduh di landing dan `install.sh`. Versi 1.0.2 atau yang lebih lama belum punya pemeriksa ini, jadi sekali saja perlu dipasang manual.
+Variabel uji: `UPDATE_REPO`, `UPDATE_FEED` (URL JSON "latest release" lain).
+
+## Pembayaran DOKU
+
+Plan berbayar dibeli lewat **DOKU Checkout** (halaman pembayaran DOKU: QRIS, virtual account, e-wallet, kartu). Harga ada di `PLANS` (`central/server.js`):
+
+| Plan | Bulanan (30 hari) | Tahunan (365 hari, hemat 2 bulan) |
+|---|---|---|
+| Pro | Rp 49.000 | Rp 490.000 |
+| Enterprise | Rp 499.000 | Rp 4.990.000 |
+
+Alur: halaman **Akun** di aplikasi → *Beli/Perpanjang* → pusat membuat pesanan dan memanggil `POST /checkout/v1/payment` (ditandatangani HMAC-SHA256) → browser dibuka ke halaman DOKU → setelah bayar DOKU mengirim **HTTP Notification** ke `…/billing/doku/notify` → pusat memverifikasi tanda tangan (Request-Target = path URL notifikasi), mencocokkan nominal, lalu mengaktifkan plan dan `plan_until`. Halaman `…/billing/return` menampilkan status dan tombol *Kembali ke aplikasi*.
+
+- Perpanjang plan yang sama menambah masa berlaku dari `plan_until`; membeli plan lebih tinggi mulai dari sekarang (sisa masa plan lama tidak dikreditkan). Plan yang lewat `plan_until` otomatis kembali ke Free saat akun dibaca berikutnya (audit `plan.expired`). Plan yang diatur admin/CLI tidak punya masa berlaku.
+- Notifikasi bersifat idempoten (kirim ulang tidak menambah waktu), nominal harus sama dengan pesanan, dan bila *Check Status API* DOKU aktif di akunmu, statusnya dicocokkan juga. Pesanan terbuka yang sama dipakai ulang selama 45 menit; maks. 8 pesanan per jam per akun.
+- Admin melihat pesanan dan pendapatan di tab **Pembayaran**; semua kejadian (`billing.*`) masuk audit log.
+
+**Mengaktifkan** (di VPS, `/opt/clipper-central/.env`, `chmod 600`, jangan di-commit):
+
+```
+DOKU_CLIENT_ID=MCH-xxxx-xxxxxxxxxx     # DOKU Back Office → Integration → API Keys
+DOKU_SECRET_KEY=SK-xxxxxxxxxxxxxxxx
+DOKU_ENV=sandbox                       # ganti production setelah uji bayar sandbox berhasil
+```
+
+Lalu `bash scripts/deploy-central.sh`. `PUBLIC_URL` dan `DOKU_NOTIFY_URL` sudah diatur di `deploy/central/docker-compose.yml` (notifikasi dikirim sebagai `override_notification_url` per pesanan; bila DOKU menolak field itu di akunmu, hapus `DOKU_NOTIFY_URL` dan isi *Notification URL* `https://clipper.hellens.dev/api/billing/doku/notify` di Back Office). Tanpa kredensial, tombol beli tidak muncul dan `POST /billing/checkout` menjawab 503. Uji: `node --test test/billing.test.js` (DOKU tiruan yang menghitung ulang tanda tangan secara independen). Alur sungguhan di sandbox DOKU belum diuji dari sini karena butuh kredensial akunmu.
+
 ## Landing page
 
 `landing/` berisi situs pemasaran statis (HTML + CSS + sedikit JavaScript, tanpa build). Strukturnya mengikuti template
@@ -193,6 +230,11 @@ tetap berlaku (lihat rilis v1.0.0 untuk contoh). Yang masih perlu diisi: harga p
 | Caption | Whisper otomatis; preset karaoke/beasty/simple |
 | Karaoke per-kata | highlight kata aktif (file ASS) |
 | Hook | badge teks di 3 detik pertama, gaya dari CMS |
+| Tinjau sebelum render | centang **Tinjau momen sebelum render**: AI berhenti setelah memilih momen, kamu atur potongan (timeline + angka + tombol ◂ posisi / posisi ▸), judul, dan hook, lalu hanya klip terpilih yang dirender dan ditagih ke kuota |
+| Antrean | tempel beberapa link (satu per baris); diproses satu per satu (`MAX_JOBS`, default 1) dengan tahap, progres, waktu berjalan, dan tombol **Batal** yang menghentikan ffmpeg/yt-dlp |
+| Preset | simpan kombinasi rasio, caption, hook, dan resolusi sekali klik (`presets.json`), plus 5 preset bawaan; pengaturan terakhir diingat |
+| Riwayat | cari, filter grade, favorit ★, urutkan, pilih banyak untuk **ZIP** (klip + caption + .srt) atau hapus massal |
+| Editor manual | timeline trim di bawah pratinjau, terhubung ke kolom Mulai/Selesai dan saran AI |
 | Logo & sticker | overlay PNG/GIF (endpoint `/logos`, `/media`) |
 | AI | saran momen: Gemini, OpenAI, Claude, Groq, Mistral, Deepseek |
 
@@ -289,7 +331,7 @@ Tidak butuh ffmpeg/yt-dlp/API key AI.
 - **Kuota ditegakkan di sisi app lokal.** Pengguna yang mengedit `server.js` di
   komputernya bisa melewati penagihan. Menutupnya butuh langkah analisis AI
   dijalankan di pusat.
-- Belum ada pembayaran: plan diubah admin. Belum ada verifikasi email, reset
+- Pembayaran DOKU bersifat prabayar tanpa tagihan otomatis (lihat bagian *Pembayaran DOKU*); belum ada refund otomatis, kupon, atau invoice PDF. Belum ada verifikasi email, reset
   password lewat email, atau SSO.
 - Riwayat (`history.json`) milik instalasi, bukan akun: semua user di komputer
   yang sama melihat klip yang sama. Penyimpanan JSON naif — aman untuk pemakaian

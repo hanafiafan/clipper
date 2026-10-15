@@ -12,6 +12,13 @@ chk "UI publik bisa dimuat"        "$(code $U/)" 200
 chk "password pendek ditolak"      "$(code $J -d '{"email":"a@b.co","name":"A","password":"short"}' $U/auth/register)" 400
 chk "register #1"                  "$(code -c $CJ $J -d '{"email":"a@b.co","name":"A","password":"password123"}' $U/auth/register)" 200
 chk "me setelah login"             "$(code -b $CJ $U/auth/me)" 200
+chk "antrean /auto butuh login"      "$(code $U/auto)" 401
+chk "riwayat pesanan butuh login"  "$(code $U/auth/billing/orders)" 401
+chk "checkout butuh login"         "$(code -X POST $U/auth/billing/checkout)" 401
+chk "cek update butuh login"       "$(code $U/update)" 401
+chk "pasang update butuh login"    "$(code -X POST $U/update/install)" 401
+chk "presets butuh login"          "$(code $U/presets)" 401
+chk "zip butuh login"              "$(code $U/history/zip?keys=a)" 401
 chk "history dengan login"         "$(code -b $CJ $U/history)" 200
 chk "role pertama = owner"         "$(curl -s -b $CJ $U/auth/me | grep -o '"role":"[a-z]*"')" '"role":"owner"'
 chk "email duplikat ditolak"       "$(code $J -d '{"email":"A@b.co","name":"X","password":"password123"}' $U/auth/register)" 409
@@ -87,8 +94,10 @@ chk "audit paginasi (?before=2)"    "$(curl -s -b $OJ "$U/auth/admin/audit?befor
 chk "studio tanpa login dialihkan ke /"  "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{redirect_url}' $U/studio)" "302 $U/"
 chk "account.js publik"             "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/account.js | cut -d';' -f1)" "200 text/javascript"
 chk "dashboard.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/dashboard.js | cut -d';' -f1)" "200 text/javascript"
+chk "features.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/features.js | cut -d';' -f1)" "200 text/javascript"
 chk "studio dengan login"           "$(code -b $OJ $U/studio)" 200
 chk "studio memuat account.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/account.js')" 1
+chk "studio memuat features.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/features.js')" 1
 chk "studio memuat UI asli (editor)" "$(curl -s -b $OJ $U/studio | grep -c 'id=view-editor')" 1
 chk "studio tidak di-cache"         "$(curl -s -b $OJ -D - -o /dev/null $U/studio | grep -ci 'cache-control: no-store')" 1
 for i in 1 2 3 4 5; do code $J -d '{"email":"a@b.co","password":"x"}' $U/auth/login >/dev/null; done

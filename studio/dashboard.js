@@ -45,7 +45,9 @@
 
   function paintSide(u) {
     const q = quota(u);
-    sidePlan.innerHTML = `Plan aktif<b>${esc(u.limits.name)}</b>${q.used}/${q.cap ?? '∞'} klip bulan ini<div class=dmeter><i style="width:${q.pct}%"></i></div>${u.plan === 'enterprise' ? 'Kuota tanpa batas' : '<a href="/#/akun">Upgrade plan →</a>'}`;
+    const left = u.planUntil ? Math.ceil((new Date(u.planUntil) - Date.now()) / 864e5) : null;   // paid plans carry an end date
+    const until = left == null ? '' : `<div style="margin:4px 0 6px;${left <= 7 ? 'color:#b3261e' : ''}">${left > 0 ? 'Berakhir ' + left + ' hari lagi' : 'Berakhir hari ini'}</div>`;
+    sidePlan.innerHTML = `Plan aktif<b>${esc(u.limits.name)}</b>${q.used}/${q.cap ?? '∞'} klip bulan ini<div class=dmeter><i style="width:${q.pct}%"></i></div>${until}${u.plan === 'enterprise' && !u.planUntil ? 'Kuota tanpa batas' : `<a href="/#/akun">${u.plan === 'free' ? 'Upgrade plan →' : left != null ? 'Perpanjang →' : 'Upgrade plan →'}</a>`}`;
   }
 
   async function paint() {

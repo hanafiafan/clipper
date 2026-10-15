@@ -22,6 +22,6 @@ if (cmd === 'list') {
 } else if (cmd === 'plan') {
   if (!['free', 'pro', 'enterprise'].includes(value)) die('plan harus free, pro, atau enterprise');
   const u = find(email) || die('user tidak ditemukan: ' + email);
-  db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(value, u.id); log('cli.plan', u.email, `${u.plan} -> ${value}`);
+  db.prepare('UPDATE users SET plan = ?, plan_until = NULL WHERE id = ?').run(value, u.id); log('cli.plan', u.email, `${u.plan} -> ${value}`);
   console.log(`${u.email}: ${u.plan} -> ${value}`);
 } else die('pakai: list | promote <email> <role> | plan <email> <plan>');
