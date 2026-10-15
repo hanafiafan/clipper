@@ -456,32 +456,36 @@ video.preview[hidden]{display:none}
                 <div class=captionGuide><div><div class=cgTop>Live caption simulator</div><h3 id=captionPreviewName>Karaoke</h3><p>Klik gaya, posisi, ukuran, atau warna di bawah. Preview ini akan berubah langsung seperti hasil video final.</p></div><div class=liveSpec><span>Posisi<b id=captionPreviewPos>Bawah</b></span><span>Ukuran<b id=captionPreviewSize>Medium</b></span><span>Highlight<b id=captionPreviewColor>Orange</b></span><span>Mode<b>Per-kata</b></span></div></div>
               </div>
             </div>
-            <div class=cfgGroup><i>C</i> Mesin AI</div>
-            <div class=field><div class=flabel>06 · Model AI</div>
-              <div class=opts id=aProv></div>
-              <div id=aProvHint class=sub style="margin-top:7px"></div>
-            </div>
           </div>
           <div class=microGrid>
-            <div class=field><div class=flabel>07 · Posisi caption</div><div class=opts id=aCapPos>
+            <div class=field><div class=flabel>06 · Posisi caption</div><div class=opts id=aCapPos>
               <div class=opt data-val=top><div class=lbl>Atas</div></div><div class=opt data-val=center><div class=lbl>Tengah</div></div><div class="opt sel" data-val=bottom><div class=lbl>Bawah</div></div>
             </div></div>
-            <div class=field><div class=flabel>08 · Ukuran teks</div><div class=opts id=aCapSize>
+            <div class=field><div class=flabel>07 · Ukuran teks</div><div class=opts id=aCapSize>
               <div class=opt data-val=small><div class=lbl>S</div></div><div class="opt sel" data-val=medium><div class=lbl>M</div></div><div class=opt data-val=large><div class=lbl>L</div></div>
             </div></div>
-            <div class=field><div class=flabel>09 · Warna highlight</div><div class=opts id=aCapColor>
+            <div class=field><div class=flabel>08 · Warna highlight</div><div class=opts id=aCapColor>
               <div class="opt sel" data-val="#FF542B" title="Oranye"><span class=colorDot style="background:#FF542B"></span></div><div class=opt data-val="#FFD400" title="Kuning"><span class=colorDot style="background:#FFD400"></span></div><div class=opt data-val="#00D084" title="Hijau"><span class=colorDot style="background:#00D084"></span></div><div class=opt data-val="#FFFFFF" title="Putih"><span class=colorDot style="background:#fff"></span></div>
               <button type=button class=opt id=aCustomHighlight data-val="#FF542B" aria-label="Gunakan warna highlight custom"><span class=colorDot id=aCustomSwatch style="background:#FF542B"></span><span class=lbl>Custom</span></button>
             </div>
               <div class=customHighlight><input type=color id=aHighlightPicker value="#FF542B" aria-label="Pilih warna highlight custom"><input type=text id=aHighlightHex value="#FF542B" maxlength=7 spellcheck=false aria-label="Kode HEX highlight" aria-describedby=aHighlightHint></div>
               <p class=highlightHint id=aHighlightHint>Pilih warna bebas atau masukkan HEX, mis. #FF542B.</p>
             </div>
-            <div class=field style="grid-column:1/-1"><div class=flabel>10 · Gaya judul hook</div><div class=opts id=aHookStyle>
+            <div class=field style="grid-column:1/-1"><div class=flabel>09 · Gaya judul hook</div><div class=opts id=aHookStyle>
               <div class="opt sel" data-val=punch><span class="hookPrev hook-punch">Viral</span><div class=lbl>Punch</div></div><div class=opt data-val=clean><span class="hookPrev hook-clean">Insight</span><div class=lbl>Clean pill</div></div><div class=opt data-val=dark><span class="hookPrev hook-dark">Wajib tahu</span><div class=lbl>Dark label</div></div>
             </div></div>
           </div>
-          <div class="field inline" style="margin-top:4px"><label class=chip title="highlight kata aktif"><input type=checkbox id=aWord checked> Caption per-kata</label>
-            <label class=chip title="judul/hook 3 detik di atas video"><input type=checkbox id=aHook checked> Judul hook (3 dtk)</label></div>
+          <div class="cfgGrid cfgTail">
+            <div class=cfgGroup><i>C</i> Mesin AI &amp; opsi proses</div>
+            <div class=field><div class=flabel>10 · Model AI</div>
+              <div class=opts id=aProv></div>
+              <div id=aProvHint class=sub style="margin-top:7px"></div>
+            </div>
+            <div class=field><div class=flabel>11 · Opsi proses</div>
+              <div class=inline id=aToggles><label class=chip title="highlight kata aktif"><input type=checkbox id=aWord checked> Caption per-kata</label>
+              <label class=chip title="judul/hook 3 detik di atas video"><input type=checkbox id=aHook checked> Judul hook (3 dtk)</label></div>
+            </div>
+          </div>
         </div>
 
         <!-- launch panel -->

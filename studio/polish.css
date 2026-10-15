@@ -182,3 +182,71 @@ button.primary::after{opacity:.8}
 input[type=checkbox],input[type=radio]{min-height:0;width:auto}
 .opt .sub2{overflow-wrap:anywhere;font-size:9px;letter-spacing:.03em}
 .chip{min-height:0}
+
+/* ---- round four: tidy grids, one rhythm, working [hidden] ---- */
+[hidden]{display:none!important}                       /* component display rules (flex, inline-flex) used to defeat the hidden attribute */
+
+/* the source link is the main input; presets sit right under it */
+#aUrl{min-height:56px;font-size:15px;padding:14px 16px}
+.urlhint{margin:8px 0 0}
+.pbar{margin:16px 0 0;padding:10px 12px;gap:10px}
+.pbar select{min-height:40px}
+.cfgGrid{margin-top:30px;gap:30px 32px}
+.cfgGroup{margin:0 0 -8px}
+.cfgTail{margin-top:34px}
+
+/* equal tiles on a fixed column grid instead of ragged wrapping rows */
+.opts{display:grid;gap:8px}
+#aAspect{grid-template-columns:repeat(4,minmax(0,1fr))}
+#aFill,#aBg{grid-template-columns:repeat(2,minmax(0,1fr))}
+#aRes{grid-template-columns:repeat(3,minmax(0,1fr))}
+#aCount{grid-template-columns:repeat(4,minmax(0,1fr))}
+#aCapPos,#aCapSize{grid-template-columns:repeat(3,minmax(0,1fr))}
+#aHookStyle{grid-template-columns:repeat(3,minmax(0,1fr))}
+#aProv{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+#aAspect .opt,#aFill .opt,#aRes .opt,#aCount .opt,#aCapPos .opt,#aCapSize .opt,#aHookStyle .opt,#aProv .opt{min-width:0;min-height:64px;justify-content:center}
+#aCapPos .opt,#aCapSize .opt,#aCount .opt{min-height:48px}
+#aBg .opt{min-height:44px}
+#aCapColor{grid-template-columns:repeat(5,minmax(0,1fr))}
+#aCapColor .opt{min-height:56px;min-width:0;padding:8px;align-items:center}
+#aCapColor .opt .lbl{font-size:10px}
+.colorDot{width:28px;height:28px}
+
+/* caption settings: position and size side by side, colour and hook styles use the full width */
+.microGrid{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:28px;gap:28px 32px}
+.microGrid>.field:nth-child(n+3){grid-column:1/-1}
+.customHighlight{display:grid;grid-template-columns:52px 140px 1fr;align-items:center;gap:10px;margin-top:12px}
+.customHighlight input[type=color]{width:52px;height:44px;flex:none}
+.highlightHint{margin:0;align-self:center}
+
+/* template browser: show whole rows, no half-cut tiles; the live preview is secondary */
+.captionOpts{max-height:none;overflow:visible}
+.captionLive{grid-template-columns:170px 1fr;padding:14px;gap:18px}
+.captionStage{height:210px}
+.captionGuide h3{font-size:22px;margin:6px 0}
+.captionGuide p{font-size:10.5px;line-height:1.55}
+.captionGuide .liveSpec{padding-top:10px;gap:6px}
+
+/* empty states span the whole grid and centre */
+.histGrid>.empty,#aResults>.empty{grid-column:1/-1}
+.empty{padding:44px 12px;font-size:12px}
+.empty::before{content:"";width:44px;height:44px;border:2px dashed var(--line2)}
+
+/* downloader info panel + key rows */
+.infopanel{background:#171916;color:#e5ebe1;border:1px solid #171916}
+.infopanel .k{color:#9aa398}.infopanel .inforow{border-bottom-color:rgba(229,235,225,.18)}.infopanel .inforow span{color:#9aa398}.infopanel .inforow b{color:#e5ebe1}
+.infopanel .chips span{color:#9aa398;border-color:rgba(229,235,225,.28)}
+.keyrow{justify-content:space-between;padding:12px 0;margin:0;border-bottom:1px solid var(--line)}
+.keyrow .keyname{flex:1}
+
+/* library cards: calmer video tiles */
+.hcard video{aspect-ratio:9/14}
+.hcard .acts{gap:10px 14px}
+
+/* summary panel and chips breathe a little more */
+.launch .speclist .sp{padding:10px 0}
+.chip{padding:10px 14px}
+#aToggles{gap:10px}
+
+@media(max-width:980px){#aRes{grid-template-columns:repeat(3,minmax(0,1fr))}.microGrid{grid-template-columns:1fr}.customHighlight{grid-template-columns:52px 1fr}.customHighlight .highlightHint{grid-column:1/-1}}
+@media(max-width:620px){#aAspect,#aCount{grid-template-columns:repeat(2,minmax(0,1fr))}#aCapColor{grid-template-columns:repeat(3,minmax(0,1fr))}#aHookStyle{grid-template-columns:1fr}.captionLive{grid-template-columns:1fr}}

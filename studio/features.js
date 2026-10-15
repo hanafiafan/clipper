@@ -237,7 +237,7 @@
     ta.addEventListener('input', grow); ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) startAuto(); });
 
     // presets
-    ta.closest('.field').insertAdjacentHTML('beforebegin', `<div class=pbar><span class=plab>Preset</span><select id=pSel aria-label="Preset pengaturan"></select>
+    $('.urlhint', ta.parentElement).insertAdjacentHTML('afterend', `<div class=pbar><span class=plab>Preset</span><select id=pSel aria-label="Preset pengaturan"></select>
       <button type=button class="px mini" id=pSave title="Simpan pengaturan sekarang sebagai preset">Simpan sekarang</button><button type=button class="px mini danger" id=pDel hidden>Hapus</button></div>`);
     $('#pSel').addEventListener('change', e => {
       const [g, i] = e.target.value.split(':'), p = g === 'b' ? BUILTIN[+i] : g === 'u' ? userPresets[+i] : null;
