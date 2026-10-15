@@ -436,7 +436,7 @@ http.createServer(async (req, res) => {
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     const tok = cookieTok(req);
-    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js', '/studio/polish.css'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
       if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status', 'orders'].includes(act.slice(6))) { // peran dicek di pusat
@@ -462,7 +462,7 @@ http.createServer(async (req, res) => {
       if (!user) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
       res.setHeader('Cache-Control', 'no-store'); return serve(res, STUDIO, 'index.html');
     }
-    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js')) return serve(res, STUDIO, path.basename(u.pathname));
+    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js' || u.pathname === '/studio/polish.css')) return serve(res, STUDIO, path.basename(u.pathname));
     if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8));

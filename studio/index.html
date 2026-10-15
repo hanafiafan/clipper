@@ -322,6 +322,7 @@ a{color:#c93212;text-decoration-thickness:1px;text-underline-offset:3px}a:hover{
 video.preview[hidden]{display:none}
 .customHighlight{display:flex;gap:8px;align-items:center;margin-top:12px}.customHighlight input[type=color]{flex:0 0 48px;width:48px;height:44px;padding:4px;cursor:pointer}.customHighlight input[type=text]{min-width:0;width:100%;font-family:var(--mono);text-transform:uppercase}.highlightHint{font:10px/1.5 var(--mono);color:var(--muted);margin:8px 0 0}.customHighlight input[aria-invalid=true]{border-color:#bd321d}
 </style>
+<link rel=stylesheet href="/studio/polish.css">
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <symbol id="i-auto" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></symbol>
@@ -383,29 +384,6 @@ video.preview[hidden]{display:none}
         </div>
       </div>
 
-      <section class=sampleSection aria-label="Contoh hasil Hellens Clipper">
-        <div class=sampleHead><div><div class=eyebrow>Selected output // real-world preview</div><h2>Lihat sebelum render.</h2></div><p>Tiga contoh frame vertikal dengan caption, crop, dan grade siap posting.</p></div>
-        <div class=sampleGrid>
-          <article class=sampleCard>
-            <img src="/brand/preview-podcast-host.webp" alt="Contoh klip podcast vertikal" loading=lazy>
-            <div class=sampleTop><span>Podcast · 00:38</span><b>A</b></div>
-            <div class=sampleCaption>Ide bagus selalu<br><em>dimulai dari masalah.</em></div>
-            <div class=sampleMeta><span><strong>94</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
-          </article>
-          <article class=sampleCard>
-            <img src="/brand/preview-food-creator.webp" alt="Contoh klip kreator kuliner vertikal" loading=lazy>
-            <div class=sampleTop><span>Food · 00:27</span><b>A</b></div>
-            <div class=sampleCaption>Rahasia rasanya<br><em>ada di tahap ini.</em></div>
-            <div class=sampleMeta><span><strong>91</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
-          </article>
-          <article class=sampleCard>
-            <img src="/brand/preview-travel-creator.webp" alt="Contoh klip kreator perjalanan vertikal" loading=lazy>
-            <div class=sampleTop><span>Travel · 00:42</span><b>B</b></div>
-            <div class=sampleCaption>Tempat ini terasa<br><em>seperti planet lain.</em></div>
-            <div class=sampleMeta><span><strong>87</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
-          </article>
-        </div>
-      </section>
 
       <div class=autogrid>
         <!-- control console -->
@@ -414,9 +392,10 @@ video.preview[hidden]{display:none}
           <div class=field><div class=flabel>Sumber · URL YouTube</div>
             <input id=aUrl placeholder="https://youtube.com/watch?v=…"></div>
           <div class=cfgGrid>
+            <div class=cfgGroup><i>A</i> Format output</div>
             <div class=field><div class=flabel>01 · Rasio tujuan</div>
               <div class=opts id=aAspect>
-                <div class="opt sel" data-val=9:16><div class="ar ar916"></div><div class=lbl>9:16</div><div class=sub2>TikTok/Reels</div></div>
+                <div class="opt sel" data-val=9:16><div class="ar ar916"></div><div class=lbl>9:16</div><div class=sub2>Reels</div></div>
                 <div class=opt data-val=3:4><div class="ar ar34"></div><div class=lbl>3:4</div><div class=sub2>Feed IG</div></div>
                 <div class=opt data-val=1:1><div class="ar ar11"></div><div class=lbl>1:1</div><div class=sub2>Post</div></div>
                 <div class=opt data-val=16:9><div class="ar ar169"></div><div class=lbl>16:9</div><div class=sub2>Lanskap</div></div>
@@ -449,6 +428,7 @@ video.preview[hidden]{display:none}
                 <div class="opt sel" data-val=6><div class=lbl>6</div></div>
               </div>
             </div>
+            <div class=cfgGroup><i>B</i> Caption &amp; hook</div>
             <div class="field wide"><div class=flabel>05 · Gaya caption</div>
               <div class=templateBrowser>
                 <div class=templateTabs><button type=button class="templateTab active" data-cat=all>Semua</button><button type=button class=templateTab data-cat=basic>Basic</button><button type=button class=templateTab data-cat=bold>Bold</button><button type=button class=templateTab data-cat=bubble>Bubble</button><button type=button class=templateTab data-cat=effects>Effects</button></div>
@@ -476,6 +456,7 @@ video.preview[hidden]{display:none}
                 <div class=captionGuide><div><div class=cgTop>Live caption simulator</div><h3 id=captionPreviewName>Karaoke</h3><p>Klik gaya, posisi, ukuran, atau warna di bawah. Preview ini akan berubah langsung seperti hasil video final.</p></div><div class=liveSpec><span>Posisi<b id=captionPreviewPos>Bawah</b></span><span>Ukuran<b id=captionPreviewSize>Medium</b></span><span>Highlight<b id=captionPreviewColor>Orange</b></span><span>Mode<b>Per-kata</b></span></div></div>
               </div>
             </div>
+            <div class=cfgGroup><i>C</i> Mesin AI</div>
             <div class=field><div class=flabel>06 · Model AI</div>
               <div class=opts id=aProv></div>
               <div id=aProvHint class=sub style="margin-top:7px"></div>
@@ -505,7 +486,7 @@ video.preview[hidden]{display:none}
 
         <!-- launch panel -->
         <aside class="card launch">
-          <div class=launchhead><span>Mission spec</span><span class=mono>SYS.GO</span></div>
+          <div class=launchhead><span>Ringkasan</span><span class=mono>SIAP</span></div>
           <div id=aSpec class=speclist></div>
           <button id=aBtn class="primary full" onclick=startAuto()><svg class=ic14><use href="#i-auto"/></svg> Buat shorts</button>
           <div id=aStatus class=sub></div>
@@ -517,6 +498,30 @@ video.preview[hidden]{display:none}
         <h2><svg class=ic><use href="#i-library"/></svg> Hasil <span class=hcode>OUT</span></h2>
         <div id=aResults class=histGrid><div class=empty><svg class=xh><use href="#i-cross"/></svg>Hasil short akan muncul di sini setelah diproses</div></div>
       </div>
+
+      <section class=sampleSection aria-label="Contoh hasil Hellens Clipper">
+        <div class=sampleHead><div><div class=eyebrow>Selected output // real-world preview</div><h2>Lihat sebelum render.</h2></div><p>Tiga contoh frame vertikal dengan caption, crop, dan grade siap posting.</p></div>
+        <div class=sampleGrid>
+          <article class=sampleCard>
+            <img src="/brand/preview-podcast-host.webp" alt="Contoh klip podcast vertikal" loading=lazy>
+            <div class=sampleTop><span>Podcast · 00:38</span><b>A</b></div>
+            <div class=sampleCaption>Ide bagus selalu<br><em>dimulai dari masalah.</em></div>
+            <div class=sampleMeta><span><strong>94</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
+          </article>
+          <article class=sampleCard>
+            <img src="/brand/preview-food-creator.webp" alt="Contoh klip kreator kuliner vertikal" loading=lazy>
+            <div class=sampleTop><span>Food · 00:27</span><b>A</b></div>
+            <div class=sampleCaption>Rahasia rasanya<br><em>ada di tahap ini.</em></div>
+            <div class=sampleMeta><span><strong>91</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
+          </article>
+          <article class=sampleCard>
+            <img src="/brand/preview-travel-creator.webp" alt="Contoh klip kreator perjalanan vertikal" loading=lazy>
+            <div class=sampleTop><span>Travel · 00:42</span><b>B</b></div>
+            <div class=sampleCaption>Tempat ini terasa<br><em>seperti planet lain.</em></div>
+            <div class=sampleMeta><span><strong>87</strong> viral score</span><span>9:16 · 1080p</span><i class=samplePlay>▶</i></div>
+          </article>
+        </div>
+      </section>
     </section>
 
     <!-- EDITOR -->

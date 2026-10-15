@@ -95,6 +95,7 @@ chk "studio tanpa login dialihkan ke /"  "$(curl -s -m 5 -o /dev/null -w '%{http
 chk "account.js publik"             "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/account.js | cut -d';' -f1)" "200 text/javascript"
 chk "dashboard.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/dashboard.js | cut -d';' -f1)" "200 text/javascript"
 chk "features.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/features.js | cut -d';' -f1)" "200 text/javascript"
+chk "polish.css publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/polish.css | cut -d';' -f1)" "200 text/css"
 chk "studio dengan login"           "$(code -b $OJ $U/studio)" 200
 chk "studio memuat account.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/account.js')" 1
 chk "studio memuat features.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/features.js')" 1
