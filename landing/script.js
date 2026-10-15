@@ -67,12 +67,36 @@
     size();
   }
 
+  /* ---------- helpers for the motion layer ---------- */
+  // Wrap every word of a node's text in <span class=cls style=--i:n>, keeping inline elements such as <b>.
+  const wrapWords = (node, cls, inner, n = { i: 0 }) => {
+    [...node.childNodes].forEach(c => {
+      if (c.nodeType === 3) {
+        const f = document.createDocumentFragment();
+        c.textContent.split(/(\s+)/).forEach(w => {
+          if (!w) return;
+          if (/^\s+$/.test(w)) return f.append(w);
+          const o = document.createElement('span'); o.className = cls; o.style.setProperty('--i', n.i++);
+          if (inner) { const i = document.createElement('span'); i.textContent = w; o.append(i); } else o.textContent = w;
+          f.append(o);
+        });
+        c.replaceWith(f);
+      } else if (c.nodeType === 1) wrapWords(c, cls, inner, n);
+    });
+  };
+  const karaoke = p => {
+    if (reduce || !p) return;
+    if (!p.dataset.src) p.dataset.src = p.innerHTML;
+    p.innerHTML = p.dataset.src; wrapWords(p, 'w', false);
+  };
+
   /* ---------- roles: tabs with arrow-key navigation ---------- */
   const tabs = $$('[role=tab]'), panels = $$('[role=tabpanel]');
   const pick = (i, focus) => tabs.forEach((t, k) => {
     const on = k === i;
     t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; panels[k].hidden = !on;
     if (on && focus) t.focus();
+    if (on) karaoke(panels[k]);
   });
   tabs.forEach((t, i) => {
     t.addEventListener('click', () => pick(i));
@@ -118,4 +142,72 @@
     try { await navigator.clipboard.writeText(text); b.textContent = 'Tersalin ✓'; } catch (_) { b.textContent = 'Salin manual'; }
     setTimeout(() => { b.textContent = 'Salin'; }, 2000);
   }));
+
+  /* ================= motion layer ================= */
+  /* scroll progress, hero parallax + fade */
+  const prog = $('.progress'), body = $('.hero-body'), heroEl = $('.hero');
+  const onScroll2 = () => {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    if (prog) prog.style.setProperty('--p', max > 0 ? Math.min(scrollY / max, 1).toFixed(4) : 0);
+    if (body && !reduce && scrollY < innerHeight * 1.2) {
+      body.style.setProperty('--sy', (scrollY * 0.28).toFixed(1) + 'px');
+      body.style.setProperty('--so', Math.max(0, 1 - scrollY / (innerHeight * 0.75)).toFixed(3));
+    }
+  };
+  onScroll2(); addEventListener('scroll', onScroll2, { passive: true });
+
+  /* hero: title letters rise in, subtitle types out, content drifts against the pointer */
+  const h1 = $('.hero h1');
+  if (h1 && !reduce) {
+    const n = { i: 0 }, t = [...h1.childNodes].find(c => c.nodeType === 3 && c.textContent.trim());
+    if (t) { const f = document.createDocumentFragment(); [...t.textContent.trim()].forEach(ch => { const s = document.createElement('span'); s.className = 'ch'; s.setAttribute('aria-hidden', 'true'); s.style.setProperty('--i', n.i++); s.textContent = ch; f.append(s); }); t.replaceWith(f); }
+    const sub = $('.hero-body p');
+    if (sub) {
+      const full = sub.textContent; sub.setAttribute('aria-label', full); sub.textContent = ''; sub.classList.add('typing');
+      let k = 0; setTimeout(function tick() { sub.textContent = full.slice(0, ++k); if (k < full.length) setTimeout(tick, 28); else setTimeout(() => sub.classList.remove('typing'), 1400); }, 900);
+    }
+    heroEl.addEventListener('pointermove', e => {
+      const r = heroEl.getBoundingClientRect();
+      body.style.setProperty('--px', (((e.clientX - r.left) / r.width - .5) * -18).toFixed(1) + 'px');
+      body.style.setProperty('--py', (((e.clientY - r.top) / r.height - .5) * -12).toFixed(1) + 'px');
+    });
+  }
+
+  /* magnetic buttons */
+  if (!reduce && matchMedia('(hover: hover)').matches) $$('.btn.solid, .btn.dark, .pillbtn').forEach(b => {
+    b.addEventListener('pointermove', e => { const r = b.getBoundingClientRect(); b.style.setProperty('--mx', ((e.clientX - r.left - r.width / 2) * .22).toFixed(1) + 'px'); b.style.setProperty('--my', ((e.clientY - r.top - r.height / 2) * .35).toFixed(1) + 'px'); });
+    b.addEventListener('pointerleave', () => { b.style.removeProperty('--mx'); b.style.removeProperty('--my'); });
+  });
+
+  /* screenshots tilt toward the pointer */
+  if (!reduce && matchMedia('(hover: hover)').matches) $$('.frame').forEach(f => {
+    f.addEventListener('pointermove', e => { const r = f.getBoundingClientRect(); f.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 5).toFixed(2) + 'deg'); f.style.setProperty('--rx', (((e.clientY - r.top) / r.height - .5) * -4).toFixed(2) + 'deg'); });
+    f.addEventListener('pointerleave', () => { f.style.removeProperty('--rx'); f.style.removeProperty('--ry'); });
+  });
+
+  /* map packets stop for reduced motion */
+  if (reduce) $$('.map svg.lines').forEach(v => v.pauseAnimations && v.pauseAnimations());
+
+  /* reveal on scroll: headings split into words, blocks fade up in sequence, numbers count */
+  const split = $$('.sec > .wrap > h2, .sec-head h2, .band h2');
+  if (!reduce) split.forEach(h => { wrapWords(h, 'wd', true); h.classList.add('split'); });
+  const rvSel = ['.lede', '.cols3 article', '.tabs', '.role-text:not([hidden])', '.counter', '.chips', '.step', '.shot', '.plan', '.note', '.dl-block', '.map', '.faq details', '.band p', '.band .hero-cta', '.statrow > div', '.giant'];
+  const groups = new Map();
+  if (!reduce) $$(rvSel.join(',')).forEach(el => {
+    const g = el.parentElement; const d = groups.get(g) || 0; groups.set(g, d + 1);
+    el.classList.add('rv'); el.style.setProperty('--d', Math.min(d, 8));
+  });
+  const count = el => {
+    const to = +el.dataset.count, from = +(el.dataset.from || 0), sfx = el.dataset.suffix || '', t0 = performance.now();
+    (function f(t) { const k = Math.min((t - t0) / 1400, 1), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(from + (to - from) * e) + sfx; if (k < 1) requestAnimationFrame(f); })(t0);
+  };
+  if (!reduce && 'IntersectionObserver' in window) {
+    $$('[data-count]').forEach(el => { el.textContent = (el.dataset.from || 0) + (el.dataset.suffix || ''); });
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in'); io.unobserve(e.target);
+      $$('[data-count]', e.target).concat(e.target.matches('[data-count]') ? [e.target] : []).forEach(count);
+    }), { threshold: .15, rootMargin: '0px 0px -6% 0px' });
+    $$('.rv, h2.split').forEach(el => io.observe(el));
+  } else $$('.rv, h2.split').forEach(el => el.classList.add('in'));
 })();
