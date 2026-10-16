@@ -250,3 +250,47 @@ input[type=checkbox],input[type=radio]{min-height:0;width:auto}
 
 @media(max-width:980px){#aRes{grid-template-columns:repeat(3,minmax(0,1fr))}.microGrid{grid-template-columns:1fr}.customHighlight{grid-template-columns:52px 1fr}.customHighlight .highlightHint{grid-column:1/-1}}
 @media(max-width:620px){#aAspect,#aCount{grid-template-columns:repeat(2,minmax(0,1fr))}#aCapColor{grid-template-columns:repeat(3,minmax(0,1fr))}#aHookStyle{grid-template-columns:1fr}.captionLive{grid-template-columns:1fr}}
+
+/* ---- platform icons, phone previews, caption studio, engine card ---- */
+.plat{display:flex;gap:6px;justify-content:center;margin-top:6px;color:var(--muted)}
+.plat span{display:inline-grid;place-items:center}
+.opt.sel .plat{color:var(--text)}
+.ratioHint{margin-top:10px;font:11px/1.5 var(--mono);color:var(--muted);letter-spacing:.03em}
+.ratioHint b{color:var(--text);font-weight:700;margin-right:4px}
+
+.ovGrid{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:26px;align-items:start}
+.ovSide{position:sticky;top:16px}
+.ovp{display:grid;gap:8px;justify-items:center}
+.ovf{position:relative;width:100%;max-width:230px;aspect-ratio:9/16;background:#0c0c0b;border:4px solid #171916;border-radius:18px;overflow:hidden;box-shadow:6px 6px 0 var(--line2);transition:aspect-ratio .2s}
+.ovf.wide{max-width:100%;border-radius:10px}
+.ovbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.78) saturate(.85)}
+.ovlogo{position:absolute;height:auto;max-width:100%;transition:opacity .15s}
+.ovlogo.off,.ovstk.off{outline:1px dashed rgba(255,255,255,.7);outline-offset:3px}
+.ovlogo.off{opacity:.45!important}.ovstk.off{opacity:.5}
+.ovstk{position:absolute;transform:translate(-50%,-50%);font-family:"THE BOLD FONT","Anton",sans-serif;text-transform:uppercase;white-space:nowrap;line-height:1;text-align:center}
+.ovstk img{display:block}
+.ovcap{position:absolute;left:8%;right:8%;bottom:11%;text-align:center;color:#fff;font:800 clamp(9px,1.5vw,13px)/1.15 "Komika Axis",var(--body);text-shadow:1px 1px 0 #000,-1px -1px 0 #000;opacity:.9}
+.ovcap span{color:var(--accent)}
+.ovnote{font:10px/1.4 var(--mono);color:var(--muted);text-align:center;max-width:230px}
+.presetRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.presetRow .plab{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.brandGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.brandGrid label{margin:0}
+#brandPrev{grid-column:2;grid-row:auto}
+@media(max-width:980px){.ovGrid{grid-template-columns:1fr}.ovSide{position:static}.brandGrid{grid-template-columns:repeat(2,1fr)}}
+
+/* Editor caption studio */
+.fontStudio{grid-template-columns:230px minmax(0,1fr);gap:24px;align-items:start}
+.fontStudio .fontPreview.phoneFrame{height:auto;aspect-ratio:9/16;border:4px solid #171916;border-radius:18px;box-shadow:6px 6px 0 var(--line2)}
+.fontPrevName{position:absolute;z-index:3;top:10px;left:10px;right:10px;font:700 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#fff;text-align:center;background:rgba(12,12,11,.62);padding:5px 6px}
+.fontPreview .liveText{left:8px;right:8px}
+.fontPresetGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fontPresetGrid .opt{min-height:88px;padding:10px 8px;justify-content:center}
+.fontPresetGrid .capprev{height:auto;min-height:38px;padding:7px 8px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:clip;line-height:1.1}
+.fontPresetGrid .cap-impact{font-size:17px}
+.fontPresetGrid .lbl{font-size:11px;text-transform:capitalize}
+@media(max-width:760px){.fontStudio{grid-template-columns:1fr}.fontStudio .fontPreview.phoneFrame{max-width:230px;margin:auto}}
+
+/* engine card */
+#engineCard .speclist .sp b{max-width:70%;text-align:right}
+#engineCard .row{align-items:end}

@@ -6,7 +6,7 @@ const post=async(path,body,raw=false)=>{const r=await fetch(path,{method:'POST',
 function Shell({user,kicker,title,lead,children}){
  const logout=async()=>{try{await post('/auth/logout',{})}catch(_){}location.replace('/')};
  return <div className="shell"><div className="strip"><div className="stripL"><span className="dot"/>HELLENS CLIPPER · AI VIDEO CLIPPER</div>
-  <div className="stripR"><span title={user.email}>{user.name.toUpperCase()} · {user.role.toUpperCase()}</span><a href="/studio">← KE STUDIO</a><button type="button" onClick={logout}>KELUAR</button></div></div>
+  <div className="stripR"><span title={user.email}>{user.name.toUpperCase()} · {roleLabel(user.role).toUpperCase()}</span><a href="/studio">← KE STUDIO</a><button type="button" onClick={logout}>KELUAR</button></div></div>
   <main className="mainpad"><div className="topbar"><div><div className="viewkick">{kicker}</div><h1>{title}</h1></div>{lead&&<div className="lead">{lead}</div>}</div>{children}</main></div>}
 function Password(){
  const [f,setF]=useState({current:'',next:''}),[msg,setMsg]=useState(null),[busy,setBusy]=useState(false);
@@ -17,6 +17,7 @@ function Password(){
    <button className="createBtn" disabled={busy}>{busy?'Menyimpan…':'Ganti password'}</button><p role="status" className={msg?.ok?'ok':'authErr'}>{msg?.text}</p></form></section>}
 const rp=n=>'Rp '+Number(n).toLocaleString('id-ID');
 const RANK={free:0,pro:1,enterprise:2};
+const roleLabel=r=>r==='owner'?'Superadmin':r==='admin'?'Admin':'Member';   // owner = superadmin: manages roles, plans, users, content (CMS) and payments
 const dateId=iso=>new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 function Plans({user,copy={}}){
  const [d,setD]=useState(null),[busy,setBusy]=useState(''),[err,setErr]=useState('');
@@ -48,7 +49,7 @@ function AccountPage({user:u0}){
  const [user,setUser]=useState(u0),[copy,setCopy]=useState({});
  useEffect(()=>{fetch('/auth/me?fresh=1').then(r=>r.ok?r.json():{}).then(x=>x.user&&setUser(x.user));fetch('/auth/content').then(r=>r.json()).then(x=>setCopy(x.content?.plan_copy||{})).catch(()=>{})},[]);
  return <Shell user={user} kicker="AKUN // PLAN & KEAMANAN" title="Akun" lead={user.email}><div className="stack">
-  <section className="panel"><div className="panelHead"><div><small>PROFIL</small><h2>{user.name}</h2></div></div><p className="hint">{user.email} · role {user.role} · plan {user.limits.name}</p></section>
+  <section className="panel"><div className="panelHead"><div><small>PROFIL</small><h2>{user.name}</h2></div></div><p className="hint">{user.email} · {roleLabel(user.role)} · plan {user.limits.name}</p></section>
   <Plans user={user} copy={copy}/><Orders/><Password/></div></Shell>}
 function Admin({user}){
  const [d,setD]=useState(null),[err,setErr]=useState(''),[tab,setTab]=useState('users');
@@ -67,7 +68,7 @@ function Admin({user}){
   <div className="statRow"><div className="panel"><small>Total user</small><strong>{d.st.users}</strong></div><div className="panel"><small>Klip bulan ini</small><strong>{d.st.clipsThisMonth}</strong></div>{['free','pro','enterprise'].map(p=><div className="panel" key={p}><small>Plan {p}</small><strong>{d.st.byPlan[p]||0}</strong></div>)}</div>
   <section className="panel"><h2>Pemakaian 6 bulan terakhir</h2><div className="bars">{d.st.months.length?d.st.months.map(m=><div key={m.month}><i style={{height:Math.max(4,m.clips/max*100)+'%'}}/><b>{m.clips}</b><small>{m.month}</small></div>):<small>Belum ada pemakaian.</small>}</div></section>
   <section className="panel"><h2>User</h2><div className="tableWrap"><table><thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Plan</th><th>Klip bulan ini</th><th>Status</th></tr></thead><tbody>{d.users.map(x=><tr key={x.id} className={x.disabled?'off':''}><td>{x.name}</td><td>{x.email}</td>
-   <td><select aria-label={'Role '+x.email} value={x.role} disabled={user.role!=='owner'||x.id===user.id} onChange={e=>change('role',x.id,e.target.value)}>{['owner','admin','member'].map(r=><option key={r}>{r}</option>)}</select></td>
+   <td><select aria-label={'Role '+x.email} value={x.role} disabled={user.role!=='owner'||x.id===user.id} onChange={e=>change('role',x.id,e.target.value)}>{['owner','admin','member'].map(r=><option key={r} value={r}>{roleLabel(r)}</option>)}</select></td>
    <td><select aria-label={'Plan '+x.email} value={x.plan} onChange={e=>change('plan',x.id,e.target.value)}>{['free','pro','enterprise'].map(r=><option key={r}>{r}</option>)}</select></td><td>{x.clips}</td><td>{x.disabled?'Nonaktif':'Aktif'} {x.id!==user.id&&<button className="pill planPill" onClick={()=>setStatus(x,!x.disabled)}>{x.disabled?'Aktifkan':'Nonaktifkan'}</button>}</td></tr>)}</tbody></table></div></section>
   <section className="panel"><h2>Audit log</h2><div className="tableWrap"><table><thead><tr><th>Waktu</th><th>Aktor</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead><tbody>{d.audit.map(a=><tr key={a.id}><td>{new Date(a.at).toLocaleString('id-ID')}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td>{a.detail}</td></tr>)}</tbody></table></div>{d.more&&<button className="pill planPill" onClick={more}>Muat lebih banyak</button>}</section></>}</div></Shell>}
 function AdminOrders({setErr}){

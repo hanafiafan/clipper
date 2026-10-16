@@ -194,8 +194,9 @@
     const tpl = $('#aPreset .opt.sel'), fit = getSel('aFill') === 'fit', color = getSel('aBg') === 'color';
     return { aspect: getSel('aAspect'), fill: getSel('aFill'), bg: fit ? (color ? $('#aBgColor').value : 'blur') : undefined, resolution: getSel('aRes'), count: +getSel('aCount'),
       preset: getSel('aPreset'), template: tpl ? tpl.dataset.name : undefined, wordByWord: $('#aWord').checked, captionPosition: getSel('aCapPos'), captionSize: getSel('aCapSize'),
-      captionColor: getSel('aCapColor'), hook: $('#aHook').checked, hookStyle: getSel('aHookStyle'), review: $('#aReview').checked };
+      captionColor: getSel('aCapColor'), hook: $('#aHook').checked, hookStyle: getSel('aHookStyle'), review: $('#aReview').checked, ...(window.__klipAdv ? window.__klipAdv.cfg() : {}) };
   };
+  window.__klipCaptureCfg = captureCfg;   // also used by the end-to-end checks
   const pickOpt = (group, pred) => { const o = $$('#' + group + ' > .opt').find(x => !x.classList.contains('lockedres') && pred(x)); if (o) o.click(); return !!o; };
   const setCheck = (id, v) => { const c = $('#' + id); if (c && v != null && c.checked !== !!v) { c.checked = !!v; c.dispatchEvent(new Event('change', { bubbles: true })); } };
   function applyCfg(c) {
@@ -211,6 +212,7 @@
     if (c.captionColor && !pickOpt('aCapColor', o => o.id !== 'aCustomHighlight' && o.dataset.val.toUpperCase() === c.captionColor.toUpperCase())) setCustomHighlight(c.captionColor);
     c.hookStyle && pickOpt('aHookStyle', o => o.dataset.val === c.hookStyle);
     setCheck('aWord', c.wordByWord); setCheck('aHook', c.hook); setCheck('aReview', c.review);
+    if (window.__klipAdv) window.__klipAdv.apply(c);
     updateSpec(); updateCaptionPreview();
   }
   function paintPresets(keep) {
@@ -300,7 +302,8 @@
     try {
       for (const url of urls) {
         const { jobId } = await api('POST', '/auto', { url, aspect: cfg.aspect, fill, bg, resolution: cfg.resolution, count: cfg.count, preset: cfg.preset, wordByWord: cfg.wordByWord,
-          captionPosition: cfg.captionPosition, captionSize: cfg.captionSize, captionColor: cfg.captionColor, hook: cfg.hook, hookStyle: cfg.hookStyle, motion: true, provider, review: cfg.review });
+          captionPosition: cfg.captionPosition, captionSize: cfg.captionSize, captionColor: cfg.captionColor, hook: cfg.hook, hookStyle: cfg.hookStyle, motion: true, provider, review: cfg.review, language: cfg.language,
+          logo: cfg.logoOn && cfg.logoId ? { id: cfg.logoId, scale: cfg.logoScale, x: cfg.logoX, y: cfg.logoY, opacity: cfg.logoOp } : undefined });
         jobs.set(jobId, { id: jobId, status: 'queued', stage: 'queue', step: 'Menunggu antrean…', label: url, clips: [], created: Date.now(), at: Date.now() }); n++;
       }
       $('#aUrl').value = ''; $('#aUrl').dispatchEvent(new Event('input'));

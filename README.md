@@ -159,6 +159,17 @@ caption di app terpaket, ratakan whisper + dylib-nya dulu:
 bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 ```
 
+## Unduhan YouTube dan fitur lanjutan
+
+- **Mesin unduh yang menyegarkan diri**: yt-dlp lama dijawab YouTube dengan HTTP 403, jadi aplikasi menyimpan salinan terbarunya di folder data (`bin/`), mengunduhnya dari rilis resmi, memverifikasi `SHA2-256SUMS`, dan tidak pernah menukar binary yang tidak bisa dijalankan. Diperiksa 20 detik setelah dibuka, lalu tiap hari; bila unduhan gagal dengan tanda khas YouTube (403, runtime JS, "sign in") aplikasi memperbarui sekali dan mengulang. Pesan galat dijelaskan dalam bahasa Indonesia.
+- **Runtime JavaScript**: yt-dlp memakai Deno (atau Node 22+) untuk tantangan YouTube. `PATH` aplikasi GUI minimal, jadi `lib/ytdlp.js` ikut mencari di `/opt/homebrew/bin`, `~/.deno/bin`, dll. Node bawaan Electron 33 (v20) tidak dihitung karena yt-dlp terbaru menolaknya.
+- **Pengaturan → Mesin unduh YouTube**: versi yt-dlp, status runtime, tombol *Perbarui mesin sekarang*, dan **cookies browser** (`--cookies-from-browser`) untuk video yang minta login.
+- **Ikon platform** pada setiap rasio (9:16 TikTok/Reels/Shorts, 3:4 feed, 1:1 post, 16:9 YouTube) dan keterangan "cocok untuk".
+- **Pratinjau logo dan sticker** berbentuk layar ponsel yang mengikuti rasio terpilih dan memakai geometri yang sama dengan renderer; pratinjau caption di Editor memakai gaya yang sama dengan simulator Auto.
+- **Logo brand di Auto**: unggah PNG sekali, atur ukuran/posisi/opasitas, dan semua klip Auto memakainya; ikut tersimpan di preset. Unggahan logo divalidasi sebagai PNG.
+- **Bahasa ucapan** (Auto dan Editor): menetapkan bahasa Whisper per proses dan memisahkan cache transkripnya per bahasa.
+- Peran `owner` ditampilkan sebagai **Superadmin** (kelola role, plan, user, CMS, pembayaran).
+
 ## Pembaruan aplikasi
 
 Setiap salinan yang terpasang memeriksa **rilis terbaru di GitHub** (`hanafiafan/clipper`) beberapa detik setelah dibuka lalu tiap 6 jam:

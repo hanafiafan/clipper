@@ -5,11 +5,19 @@ const { execFile } = require('child_process');
 const { AsyncLocalStorage } = require('async_hooks');
 const { zipTo } = require('./lib/zip');
 const updater = require('./lib/updater');
+const ytdlp = require('./lib/ytdlp');
 // Writable data root — set KLIP_DATA when packaged (app folder is read-only); defaults to this dir in dev.
 const DATA = process.env.KLIP_DATA || __dirname;
 const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path.join(DATA, 'logos'), MEDIA = path.join(DATA, 'media'), DL = path.join(DATA, 'downloads');
 const PORT = process.env.PORT || 3002;
 updater.configure({ dir: path.join(DATA, 'updates'), current: require('./package.json').version });
+const SETTINGS_FILE = path.join(DATA, 'settings.json');
+const readSettings = () => { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) || {}; } catch { return {}; } };
+const writeSettings = v => fs.writeFileSync(SETTINGS_FILE, JSON.stringify(v, null, 2));
+ytdlp.configure({ dir: path.join(DATA, 'bin'), cookies: readSettings().ytCookies || 'none' });
+ytdlp.augmentPath();                                                  // a Finder-launched app has a minimal PATH; find deno/node where users install them
+setTimeout(() => ytdlp.update(), 20000).unref();                      // keep yt-dlp current: YouTube breaks old versions with HTTP 403
+setInterval(() => ytdlp.update(), 864e5).unref();
 const MAX_UPLOAD = (+process.env.MAX_UPLOAD_MB || 2048) * 1048576; // batas unggah video (MB)
 [WORK, OUT, LOGOS, MEDIA, DL].forEach(d => fs.mkdirSync(d, { recursive: true }));
 
@@ -81,6 +89,9 @@ function buildSpec(aspect, fill, bg, res, focal, motion = true) {
 const MODEL = process.env.WHISPER_MODEL || path.join(__dirname, 'models', 'ggml-base.bin');
 // "auto" tetap aman untuk video multibahasa; set WHISPER_LANGUAGE=id untuk video berbahasa Indonesia agar akurasi naik.
 const WHISPER_LANGUAGE = process.env.WHISPER_LANGUAGE || 'auto';
+// Per-request transcription language (the UI sends "auto" or an ISO code); carried in the job/request context so every whisper call below picks it up.
+const okLang = v => /^(auto|[a-z]{2,3})$/.test(String(v || '')) ? String(v) : null;
+const lang = () => ((jobCtx.getStore() || {}).lang) || WHISPER_LANGUAGE;
 // Filter audio sebelum Whisper: buang dengung/desis dan ratakan volume (dipakai semua jalur transkripsi).
 const SPEECH_AF = 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11';
 // Di app terpaket fonts/ di-unpack dari app.asar (ffmpeg adalah proses terpisah dan tak bisa membaca isi asar).
@@ -106,6 +117,16 @@ const run = (cmd, args, cwd) => new Promise((ok, no) =>
   track(execFile(cmd, args, { cwd, maxBuffer: 1 << 26 }, (e, _o, err) => e ? no(new Error(err.slice(-300) || e.message)) : ok())));
 const runOut = (cmd, args) => new Promise((ok, no) => // like run but returns stdout
   track(execFile(cmd, args, { maxBuffer: 1 << 24 }, (e, out, err) => e ? no(new Error((err || e.message).slice(-300))) : ok(out))));
+// yt-dlp with the managed binary, JS-runtime and cookie flags. A YouTube-style failure triggers one forced update and a retry; errors are explained in plain Indonesian.
+async function yt(fn, args) {
+  const go = () => fn(ytdlp.bin(), [...ytdlp.extraArgs(), ...args]);
+  try { return await go(); }
+  catch (e) {
+    if (ytdlp.retryable(e.message) && (await ytdlp.update({ force: true })).updated) { try { return await go(); } catch (e2) { e = e2; } }
+    throw new Error(ytdlp.explain(e.message));
+  }
+}
+const ytRun = (args, cwd) => yt((c, a) => run(c, a, cwd), args), ytOut = args => yt((c, a) => runOut(c, a), args);
 // Render a rounded pill badge (text+emoji) to a transparent PNG via headless Chrome (scripts/badge.js).
 const renderBadge = (outPng, cfg) => new Promise((ok, no) =>
   execFile(process.execPath, [path.join(__dirname, 'scripts', 'badge.js'), outPng, JSON.stringify(cfg)],
@@ -115,7 +136,7 @@ const renderBadge = (outPng, cfg) => new Promise((ok, no) =>
 async function transcribe(src, s, e, name) {
   const wav = path.join(WORK, name + '.wav');
   await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
-  await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', path.join(OUT, name), '-ml', '32', '-sow']);
+  await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', lang(), '-osrt', '-of', path.join(OUT, name), '-ml', '32', '-sow']);
   fs.unlinkSync(wav);
   return fs.statSync(path.join(OUT, name + '.srt')).size > 0;
 }
@@ -123,7 +144,7 @@ async function transcribe(src, s, e, name) {
 async function transcribeWords(src, s, e, name) {
   const wav = path.join(WORK, name + '.w.wav'), out = path.join(OUT, name + '.w');
   await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), '-i', src, '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
-  await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', out, '-ml', '1', '-sow']);
+  await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', lang(), '-osrt', '-of', out, '-ml', '1', '-sow']);
   fs.unlinkSync(wav);
   const sec = t => { const [h, m, x] = t.replace(',', '.').split(':'); return +h * 3600 + +m * 60 + +x; };
   const words = fs.readFileSync(out + '.srt', 'utf8').trim().split(/\n\n+/).map(b => {
@@ -182,10 +203,10 @@ ${events.join('\n')}`;
 }
 // Full-video transcript as "[sec] text" lines (cached as work/<id>.srt).
 async function fullTranscript(id) {
-  const base = id + '.' + WHISPER_LANGUAGE, srt = path.join(WORK, base + '.srt'), wav = path.join(WORK, id + '.wav'); // cache per bahasa
+  const base = id + '.' + lang(), srt = path.join(WORK, base + '.srt'), wav = path.join(WORK, id + '.wav'); // cache per bahasa
   if (!fs.existsSync(srt)) {
     await run('ffmpeg', ['-y', '-i', path.join(WORK, id + '.mp4'), '-vn', '-af', SPEECH_AF, '-ar', '16000', '-ac', '1', wav]);
-    await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', WHISPER_LANGUAGE, '-osrt', '-of', path.join(WORK, base)]);
+    await run('whisper-cli', ['-m', MODEL, '-f', wav, '-l', lang(), '-osrt', '-of', path.join(WORK, base)]);
     fs.unlinkSync(wav);
   }
   const sec = t => { const [h, m, x] = t.replace(',', '.').split(':'); return Math.round(h * 3600 + m * 60 + +x); };
@@ -260,7 +281,7 @@ const HIST = path.join(DATA, 'history.json');
 const readHist = () => { try { return JSON.parse(fs.readFileSync(HIST, 'utf8')); } catch { return []; } };
 const writeHist = h => fs.writeFileSync(HIST, JSON.stringify(h, null, 2));
 const PRESETS_FILE = path.join(DATA, 'presets.json');
-const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review'];
+const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review', 'logoOn', 'logoId', 'logoScale', 'logoX', 'logoY', 'logoOp', 'language'];
 const readPresets = () => { try { const v = JSON.parse(fs.readFileSync(PRESETS_FILE, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
 const writePresets = v => fs.writeFileSync(PRESETS_FILE, JSON.stringify(v, null, 2));
 const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
@@ -436,7 +457,7 @@ http.createServer(async (req, res) => {
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     const tok = cookieTok(req);
-    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js', '/studio/polish.css'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js', '/studio/advanced.js', '/studio/polish.css'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
       if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status', 'orders'].includes(act.slice(6))) { // peran dicek di pusat
@@ -462,7 +483,7 @@ http.createServer(async (req, res) => {
       if (!user) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
       res.setHeader('Cache-Control', 'no-store'); return serve(res, STUDIO, 'index.html');
     }
-    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js' || u.pathname === '/studio/polish.css')) return serve(res, STUDIO, path.basename(u.pathname));
+    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js' || u.pathname === '/studio/advanced.js' || u.pathname === '/studio/polish.css')) return serve(res, STUDIO, path.basename(u.pathname));
     if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8));
@@ -474,7 +495,9 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && u.pathname === '/logos')
       return json(res, 200, { logos: fs.readdirSync(LOGOS).filter(f => f.endsWith('.png')).map(f => ({ id: f.slice(0, -4), url: '/logos/' + f })) });
     if (req.method === 'POST' && u.pathname === '/logos') { // raw PNG body
-      const id = newId(); await new Promise((ok, no) => req.pipe(fs.createWriteStream(path.join(LOGOS, id + '.png'))).on('finish', ok).on('error', no));
+      const id = newId(), f = path.join(LOGOS, id + '.png'); await new Promise((ok, no) => req.pipe(fs.createWriteStream(f)).on('finish', ok).on('error', no));
+      const head = Buffer.alloc(8); const fd = fs.openSync(f, 'r'); fs.readSync(fd, head, 0, 8, 0); fs.closeSync(fd);
+      if (!head.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) { fs.rmSync(f, { force: true }); return json(res, 400, { error: 'Berkas logo harus PNG yang valid.' }); }   // a broken image would fail every render that uses it
       return json(res, 200, { id, url: '/logos/' + id + '.png' });
     }
     if (req.method === 'GET' && u.pathname.startsWith('/media/')) return serve(res, MEDIA, u.pathname.slice(7));
@@ -506,7 +529,7 @@ http.createServer(async (req, res) => {
       const { url } = await body(req);
       if (!/^https?:\/\//.test(url || '')) return json(res, 400, { error: 'bad url' });
       const id = newId();
-      await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, id + '.mp4'), '--', url]);
+      await ytRun(['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, id + '.mp4'), '--', url]);
       return json(res, 200, { id });
     }
     // --- Standalone YouTube downloader (full video / MP3 audio) ---
@@ -514,7 +537,7 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && u.pathname === '/yt-info') {
       const url = u.searchParams.get('url') || '';
       if (!/^https?:\/\//.test(url)) return json(res, 400, { error: 'bad url' });
-      try { const out = await runOut('yt-dlp', ['--no-warnings', '--print', '%(title)s', '--skip-download', '--', url]);
+      try { const out = await ytOut(['--no-warnings', '--print', '%(title)s', '--skip-download', '--', url]);
         return json(res, 200, { title: out.trim().split('\n')[0] || 'video' }); }
       catch (e) { return json(res, 500, { error: e.message }); }
     }
@@ -524,12 +547,12 @@ http.createServer(async (req, res) => {
       if (!['video', 'audio'].includes(kind)) return json(res, 400, { error: 'bad kind' });
       if (!/^(best|2160|1440|1080|720|480|360)$/.test(String(quality))) return json(res, 400, { error: 'bad quality' });
       const id = newId();
-      const name = (await runOut('yt-dlp', ['--no-warnings', '--print', '%(title)s', '--skip-download', '--', url]).catch(() => '')).trim().split('\n')[0];
+      const name = (await ytOut(['--no-warnings', '--print', '%(title)s', '--skip-download', '--', url]).catch(() => '')).trim().split('\n')[0];
       const safe = (name || 'video').replace(/[^\w\- ]+/g, '').trim().slice(0, 80) || 'video';
       const args = kind === 'audio'
         ? ['-x', '--audio-format', 'mp3', '--audio-quality', '0', '-o', path.join(DL, id + '.%(ext)s'), '--', url]
         : ['-f', quality === 'best' ? 'bv*+ba/b' : `bv*[height<=${quality}]+ba/b`, '--merge-output-format', 'mp4', '-o', path.join(DL, id + '.%(ext)s'), '--', url];
-      await run('yt-dlp', args);
+      await ytRun(args);
       const file = fs.readdirSync(DL).find(f => f.startsWith(id + '.'));
       if (!file) return json(res, 500, { error: 'unduhan tidak ditemukan' });
       const ext = file.split('.').pop();
@@ -554,9 +577,9 @@ http.createServer(async (req, res) => {
       catch (e) { return json(res, 200, { ok: false, error: e.message }); }
     }
     if (req.method === 'POST' && u.pathname === '/suggest') {
-      const { id, provider } = await body(req);
+      const b = await body(req), { id, provider } = b;
       if (!/^[a-f0-9]{12}$/.test(id || '')) return json(res, 400, { error: 'bad id' });
-      const txt = await askLLM(PROMPT(await fullTranscript(id)), provider);
+      const txt = await jobCtx.run({ procs: new Set(), lang: okLang(b.language) }, async () => askLLM(PROMPT(await fullTranscript(id)), provider));
       const clips = JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1))
         .filter(c => c.start >= 0 && c.end > c.start).slice(0, 5);
       return json(res, 200, { clips });
@@ -602,6 +625,14 @@ http.createServer(async (req, res) => {
       try { await updater.install({ quit: () => global.klipQuit && global.klipQuit() }); return json(res, 200, updater.status()); }
       catch (e) { return json(res, 400, { error: e.message }); }
     }
+    // --- Pengaturan aplikasi (di perangkat ini): cookies browser untuk yt-dlp; info mesin unduh ---
+    if (req.method === 'GET' && u.pathname === '/settings') return json(res, 200, { ytCookies: readSettings().ytCookies || 'none', browsers: ytdlp.COOKIE_BROWSERS, ytdlp: { version: await ytdlp.version(), managed: ytdlp.bin() !== 'yt-dlp', jsRuntime: ytdlp.jsArgs().length ? 'node' : ytdlp.which('deno') ? 'deno' : null } });
+    if (req.method === 'POST' && u.pathname === '/settings') {
+      const { ytCookies } = await body(req), v = readSettings();
+      if (ytCookies !== undefined) { if (ytCookies !== 'none' && !ytdlp.COOKIE_BROWSERS.includes(ytCookies)) return json(res, 400, { error: 'browser tidak dikenal' }); v.ytCookies = ytCookies; ytdlp.configure({ cookies: ytCookies }); }
+      writeSettings(v); return json(res, 200, { ok: true, ytCookies: v.ytCookies || 'none' });
+    }
+    if (req.method === 'POST' && u.pathname === '/settings/ytdlp-update') return json(res, 200, await ytdlp.update({ force: true }));
     // --- Preset: kombinasi pengaturan Auto yang disimpan dengan nama (satu berkas JSON, hanya nilai sederhana) ---
     if (req.method === 'GET' && u.pathname === '/presets') return json(res, 200, { presets: readPresets() });
     if (req.method === 'POST' && u.pathname === '/presets') {
@@ -625,9 +656,9 @@ http.createServer(async (req, res) => {
       if (!resAllowed(user, resolution)) return json(res, 403, { error: `Resolusi ${resolution} tidak tersedia di plan ${user.limits.name}.` });
       try { await charge(tok, 1); } catch (e2) { return json(res, e2.code, { error: e2.message }); }
       try {
-        const rec = await makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
+        const rec = await jobCtx.run({ procs: new Set(), lang: okLang(p.language) }, () => makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
           wordByWord: !!p.wordByWord, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor,
-          motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal });
+          motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal }));
         return json(res, 200, rec);
       } catch (err) { await refund(tok, 1); throw err; }
     }
@@ -644,7 +675,9 @@ http.createServer(async (req, res) => {
       const jobId = newId(), now = Date.now();
       const J = jobs[jobId] = { id: jobId, owner: user.email, status: 'queued', stage: 'queue', step: 'Menunggu antrean…', label: p.id ? 'Video unggahan' : p.url, review: !!p.review,
         clips: [], candidates: null, srcId: p.id || null, total: 0, done: 0, created: now, at: now };
-      const priv = jobPriv[jobId] = { procs: new Set(), resume: null, clips: null };
+      const priv = jobPriv[jobId] = { procs: new Set(), resume: null, clips: null, lang: okLang(p.language) };
+      const clamp = (v, lo, hi, d) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d;
+      const logo = p.logo && /^[a-f0-9]{12}$/.test(p.logo.id || '') ? { id: p.logo.id, scale: clamp(p.logo.scale, 2, 100, 25), x: clamp(p.logo.x, 0, 100, 5), y: clamp(p.logo.y, 0, 100, 5), opacity: clamp(p.logo.opacity, 0, 1, 1) } : null;   // brand logo on every clip
       json(res, 200, { jobId });
       // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
       const count = user.limits.clipsPerJob;
@@ -670,7 +703,7 @@ http.createServer(async (req, res) => {
           await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
           const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
           const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker,
+            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker, logo,
             meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
               reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
             .catch(async err => { await refund(tok, 1); throw err; });
@@ -683,9 +716,9 @@ http.createServer(async (req, res) => {
         const srcId = J.srcId || newId(); J.srcId = srcId;
         if (!p.id) {
           stage('download', 'Mengunduh video dari YouTube…');
-          runOut('yt-dlp', ['--no-warnings', '--print', '%(title)s', '--skip-download', '--', p.url]).then(t => { J.label = t.trim().split('\n')[0] || J.label; }).catch(() => {});
-          await run('yt-dlp', ['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
-            .catch(() => { chk(); throw new Error('Gagal mengunduh video (cek URL / video privat / yt-dlp).'); });
+          ytOut(['--no-warnings', '--print', '%(title)s', '--skip-download', '--', p.url]).then(t => { J.label = t.trim().split('\n')[0] || J.label; }).catch(() => {});
+          await ytRun(['-f', 'bv*[height<=1080]+ba/b', '--merge-output-format', 'mp4', '-o', path.join(WORK, srcId + '.mp4'), '--', p.url])
+            .catch(e => { chk(); throw e; });
         }
         chk(); stage('analyze', 'Transkripsi + analisis AI (cari momen viral)…');
         const norm = c => { const segs = (Array.isArray(c.timelines) ? c.timelines : [{ start: c.start, end: c.end }])
