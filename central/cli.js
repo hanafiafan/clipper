@@ -24,4 +24,15 @@ if (cmd === 'list') {
   const u = find(email) || die('user tidak ditemukan: ' + email);
   db.prepare('UPDATE users SET plan = ?, plan_until = NULL WHERE id = ?').run(value, u.id); log('cli.plan', u.email, `${u.plan} -> ${value}`);
   console.log(`${u.email}: ${u.plan} -> ${value}`);
-} else die('pakai: list | promote <email> <role> | plan <email> <plan>');
+} else if (cmd === 'doku-check') {
+  // Probe the DOKU credentials in the environment with an empty order: DOKU checks Client-Id and signature before the body, so no order is created and nothing is charged.
+  const doku = require('./doku'), c0 = doku.cfg(), env = c0.base.includes('sandbox') ? 'sandbox' : 'production';
+  if (!doku.enabled()) die(`DOKU belum dikonfigurasi (butuh DOKU_CLIENT_ID, DOKU_SECRET_KEY, PUBLIC_URL). Lingkungan: ${env}`);
+  doku.call('POST', '/checkout/v1/payment', {}).then(({ status, j }) => {
+    const code = j && j.error && j.error.code, id = c0.clientId.slice(0, 8) + '…';
+    if (code === 'invalid_client_id') die(`GAGAL: Client ID ${id} tidak dikenal di ${env}.`);
+    if (code === 'invalid_signature') die(`GAGAL: Client ID ${id} dikenal di ${env}, tetapi Secret Key tidak cocok.`);
+    if (status === 400 && j && j.error_messages) return console.log(`OK: kredensial diterima DOKU (${env}, Client ID ${id}).`);
+    die(`TIDAK PASTI: DOKU menjawab HTTP ${status}: ${JSON.stringify(j).slice(0, 200)}`);
+  }).catch(e => die('GAGAL menghubungi DOKU: ' + e.message));
+} else die('pakai: list | promote <email> <role> | plan <email> <plan> | doku-check');

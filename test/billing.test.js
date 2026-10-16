@@ -138,3 +138,21 @@ test('return page and checkout failure from DOKU', async () => {
     assert.equal((await s.j('GET', '/billing/orders', null, t)).j.orders[0].status, 'failed');
   } finally { s.stop(); d.stop(); }
 });
+
+test('cli doku-check tells wrong credentials from good ones without creating an order', async () => {
+  const execFile = require('node:util').promisify(require('node:child_process').execFile);   // async: a sync call would block the in-process mock server
+  // mock that mimics DOKU's order of checks: Client-Id first, then signature, then body validation
+  const srv = http.createServer((q, s) => { const c = []; q.on('data', d => c.push(d)); q.on('end', () => { s.setHeader('content-type', 'application/json'); s.statusCode = 400;
+    const h = q.headers, body = Buffer.concat(c);
+    if (h['client-id'] !== CID) return s.end(JSON.stringify({ error: { code: 'invalid_client_id', message: 'Invalid Client-Id' } }));
+    if (h.signature !== sigOf({ rid: h['request-id'], ts: h['request-timestamp'], target: q.url, body })) return s.end(JSON.stringify({ error: { code: 'invalid_signature' } }));
+    s.end(JSON.stringify({ error_messages: ['order.invoice_number must be filled'] })); }); });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const run = async env => { try { return { ok: true, out: (await execFile(process.execPath, ['--no-warnings', path.join(root, 'central', 'cli.js'), 'doku-check'], { env: { ...process.env, PUBLIC_URL: 'https://x.example/api', DOKU_BASE: 'http://127.0.0.1:' + srv.address().port, ...env } })).stdout }; } catch (e) { return { ok: false, out: e.stderr }; } };
+  try {
+    assert.match((await run({ DOKU_CLIENT_ID: CID, DOKU_SECRET_KEY: SECRET })).out, /^OK: kredensial diterima/);
+    const badSecret = await run({ DOKU_CLIENT_ID: CID, DOKU_SECRET_KEY: 'nope' }); assert.equal(badSecret.ok, false); assert.match(badSecret.out, /Secret Key tidak cocok/);
+    const badId = await run({ DOKU_CLIENT_ID: 'MCH-NOPE', DOKU_SECRET_KEY: SECRET }); assert.equal(badId.ok, false); assert.match(badId.out, /tidak dikenal/);
+    assert.match((await run({ DOKU_CLIENT_ID: '', DOKU_SECRET_KEY: '' })).out, /belum dikonfigurasi/);
+  } finally { srv.close(); }
+});
