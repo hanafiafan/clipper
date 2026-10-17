@@ -168,6 +168,10 @@ bash scripts/bundle-whisper.sh   # butuh `brew install whisper-cpp`
 - **Pratinjau logo dan sticker** berbentuk layar ponsel yang mengikuti rasio terpilih dan memakai geometri yang sama dengan renderer; pratinjau caption di Editor memakai gaya yang sama dengan simulator Auto.
 - **Logo brand di Auto**: unggah PNG sekali, atur ukuran/posisi/opasitas, dan semua klip Auto memakainya; ikut tersimpan di preset. Unggahan logo divalidasi sebagai PNG.
 - **Bahasa ucapan** (Auto dan Editor): menetapkan bahasa Whisper per proses dan memisahkan cache transkripnya per bahasa.
+- **Musik latar**: pustaka musik lokal (unggah mp3/m4a/wav/aac/ogg/flac, dicek bisa didekode ffmpeg, maks 60 MB; kelola di Pengaturan). Dicampur di bawah suara asli dengan pengatur volume dan **ducking** (musik mengecil saat ada orang bicara, `sidechaincompress`); tersedia di Auto, Editor, dan render ulang, dan ikut tersimpan di preset.
+- **Gelombang suara + transkrip yang bisa diklik**: timeline pemotong memakai gambar gelombang audio sumber (`/wave/<id>.png`); panel Transkrip di Editor memunculkan baris berstempel waktu (klik = mulai, Shift+klik = akhir) dan pencarian kata.
+- **Render ulang** dari Riwayat: klip dirender lagi dari sumber yang masih tersimpan (7 hari) dengan rasio, isi frame, resolusi, gaya caption, hook, atau musik lain (menagih 1 klip, klip lama tetap).
+- **Alternatif hook dari AI** di panel tinjau (klik untuk memakai), **zona aman** TikTok/Reels/Shorts pada pratinjau, dan **ekspor CSV** Riwayat.
 - Peran `owner` ditampilkan sebagai **Superadmin** (kelola role, plan, user, CMS, pembayaran).
 
 ## Pembaruan aplikasi

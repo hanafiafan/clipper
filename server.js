@@ -8,7 +8,7 @@ const updater = require('./lib/updater');
 const ytdlp = require('./lib/ytdlp');
 // Writable data root — set KLIP_DATA when packaged (app folder is read-only); defaults to this dir in dev.
 const DATA = process.env.KLIP_DATA || __dirname;
-const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path.join(DATA, 'logos'), MEDIA = path.join(DATA, 'media'), DL = path.join(DATA, 'downloads');
+const WORK = path.join(DATA, 'work'), OUT = path.join(DATA, 'out'), LOGOS = path.join(DATA, 'logos'), MEDIA = path.join(DATA, 'media'), DL = path.join(DATA, 'downloads'), MUSIC = path.join(DATA, 'music');
 const PORT = process.env.PORT || 3002;
 updater.configure({ dir: path.join(DATA, 'updates'), current: require('./package.json').version });
 const SETTINGS_FILE = path.join(DATA, 'settings.json');
@@ -19,7 +19,7 @@ ytdlp.augmentPath();                                                  // a Finde
 setTimeout(() => ytdlp.update(), 20000).unref();                      // keep yt-dlp current: YouTube breaks old versions with HTTP 403
 setInterval(() => ytdlp.update(), 864e5).unref();
 const MAX_UPLOAD = (+process.env.MAX_UPLOAD_MB || 2048) * 1048576; // batas unggah video (MB)
-[WORK, OUT, LOGOS, MEDIA, DL].forEach(d => fs.mkdirSync(d, { recursive: true }));
+[WORK, OUT, LOGOS, MEDIA, DL, MUSIC].forEach(d => fs.mkdirSync(d, { recursive: true }));
 
 // Dimensions + formats ported from backend/utils/resolution.js (sama persis)
 const RES = {
@@ -280,8 +280,11 @@ const HIST = path.join(DATA, 'history.json');
 // ponytail: naive read-modify-write; fine for single local user, add a lock if clips run in parallel.
 const readHist = () => { try { return JSON.parse(fs.readFileSync(HIST, 'utf8')); } catch { return []; } };
 const writeHist = h => fs.writeFileSync(HIST, JSON.stringify(h, null, 2));
+const MUSIC_IDX = path.join(MUSIC, 'index.json');
+const readMusic = () => { try { const v = JSON.parse(fs.readFileSync(MUSIC_IDX, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
+const writeMusic = v => fs.writeFileSync(MUSIC_IDX, JSON.stringify(v, null, 2));
 const PRESETS_FILE = path.join(DATA, 'presets.json');
-const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review', 'logoOn', 'logoId', 'logoScale', 'logoX', 'logoY', 'logoOp', 'language'];
+const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review', 'logoOn', 'logoId', 'logoScale', 'logoX', 'logoY', 'logoOp', 'language', 'musicId', 'musicVol', 'musicDuck'];
 const readPresets = () => { try { const v = JSON.parse(fs.readFileSync(PRESETS_FILE, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
 const writePresets = v => fs.writeFileSync(PRESETS_FILE, JSON.stringify(v, null, 2));
 const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
@@ -302,6 +305,8 @@ const serve = (res, dir, name, req) => { // basename blocks ../ traversal; pass 
   res.writeHead(200, { 'Content-Length': size }); fs.createReadStream(f).pipe(res);
 };
 
+// Music settings from a request body -> { id, volume 0-100, duck } or null.
+const musicOf = p => p && /^[a-f0-9]{12}$/.test(p.musicId || '') ? { id: p.musicId, volume: Number.isFinite(+p.musicVol) ? Math.min(100, Math.max(0, +p.musicVol)) : 20, duck: p.musicDuck !== false } : null;
 const jobs = {}; // in-memory auto-pilot jobs. ponytail: fine for single local user; use a store if multi-user.
 const jobPriv = {}; // per job, never sent to the browser: { procs, resume, clips }
 // Jobs run one at a time (ffmpeg/Whisper saturate the machine). A job waiting for the user's review holds no slot.
@@ -327,10 +332,10 @@ const scoreGrade = s => s == null ? null : s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 
 const AUTO_PROMPT = t => `Kamu editor short-form viral (gaya Opus Clip / Klipper). Dari transkrip ber-timestamp (detik) di bawah, pilih 3-6 momen paling berpotensi viral sebagai klip mandiri (hook kuat di 3 detik awal, utuh, bisa dipahami tanpa konteks), masing-masing 15-60 detik, mulai & berakhir di batas kalimat.
 Untuk tiap klip hasilkan paket siap-posting:
 - "timelines": array {start,end} dalam DETIK. Boleh beberapa potongan non-berurutan yang digabung jadi satu klip (buang bagian membosankan di tengah). Minimal satu.
-- "title": judul menarik; "hook": teks badge 2-4 kata untuk ditempel di video; "description": caption 1-2 kalimat siap posting.
+- "title": judul menarik; "hook": teks badge 2-4 kata untuk ditempel di video; "hooks": 2 alternatif hook lain (2-4 kata, gaya berbeda: rasa penasaran, angka/fakta, pertanyaan); "description": caption 1-2 kalimat siap posting.
 - "hashtags": 6-10 hashtag relevan (campur populer & niche), tiap item diawali '#'.
 - "score": 0-100 potensi viral; "reason": alasan singkat; "face_x","face_y": posisi wajah pembicara utama (persen 0-100; wajah tunggal ~50,40).
-Balas HANYA JSON array: [{"timelines":[{"start":0,"end":30}],"title":"...","hook":"...","description":"...","hashtags":["#a","#b"],"score":0-100,"reason":"...","face_x":50,"face_y":40}]. title/hook/description/reason/hashtags dalam bahasa transkrip.
+Balas HANYA JSON array: [{"timelines":[{"start":0,"end":30}],"title":"...","hook":"...","hooks":["...","..."],"description":"...","hashtags":["#a","#b"],"score":0-100,"reason":"...","face_x":50,"face_y":40}]. title/hook/description/reason/hashtags dalam bahasa transkrip.
 
 ${t}`;
 // Concatenate non-contiguous segments of a source into one clip (video+audio), return the new work id.
@@ -344,9 +349,15 @@ async function concatSegments(srcId, segs) {
   return out;
 }
 
+// The 3-second hook badge: text trimmed to 4 words / 24 chars, styled by the CMS hook style.
+function hookSticker(content, text, styleId) {
+  const t = String(text || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); if (!t) return null;
+  const hs = content.hook_styles[styleId] || Object.values(content.hook_styles)[0];
+  return { text: t, y: 12, duration: 3, bg: hs.bg, color: hs.color, rounded: hs.rounded };
+}
 // Render one clip (shared by /clip and /auto). p has resolved params; returns the history record.
 async function makeClip(p) {
-  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, captionPosition, captionSize, captionColor, motion, logo, sticker, focal, meta, aspect, fill, bg } = p;
+  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, captionPosition, captionSize, captionColor, motion, logo, sticker, focal, meta, aspect, fill, bg, music } = p;
   const useSpec = aspect && RES[resolution][aspect];          // flexible aspect+fill+bg path
   const arKey = useSpec ? aspect : (FORMATS[mode][0] || '9:16');
   const isColorBg = useSpec && fill === 'fit' && typeof bg === 'string' && /^#?[0-9a-fA-F]{6}$/.test(bg);
@@ -362,7 +373,9 @@ async function makeClip(p) {
   const stickerOn = !!(stickerText || stickerMedia);
   let logoPath = null;
   if (logo && /^[a-f0-9]{12}$/.test(logo.id || '')) { const pth = path.join(LOGOS, logo.id + '.png'); if (fs.existsSync(pth)) logoPath = pth; }
-  const base = `${id}_${s}-${e}_${modeTag}${isBlur && !motion ? 'S' : ''}_${resolution}${focalOn ? '_ft' : ''}${captions ? '_cc_' + preset + (wordByWord ? 'W' : '') : ''}${logoPath ? '_logo' : ''}${stickerOn ? '_stk' : ''}`, src = path.join(WORK, id + '.mp4');
+  let musicPath = null;                                       // background music from the library (music/index.json)
+  if (music && /^[a-f0-9]{12}$/.test(music.id || '')) { const m = readMusic().find(x => x.id === music.id); if (m && fs.existsSync(path.join(MUSIC, m.id + '.' + m.ext))) musicPath = path.join(MUSIC, m.id + '.' + m.ext); }
+  const base = `${id}_${s}-${e}_${modeTag}${isBlur && !motion ? 'S' : ''}_${resolution}${focalOn ? '_ft' : ''}${captions ? '_cc_' + preset + (wordByWord ? 'W' : '') : ''}${logoPath ? '_logo' : ''}${stickerOn ? '_stk' : ''}${musicPath ? '_mus' : ''}`, src = path.join(WORK, id + '.mp4');
 
   const [w, h] = RES[resolution][arKey];
   const steps = []; let label = '[0:v]';
@@ -403,12 +416,21 @@ async function makeClip(p) {
       steps.push(`[${idx}:v]scale=${sc}:-1,format=rgba[stk];${label}[stk]overlay=(main_w*${sx}/100)-(overlay_w/2):(main_h*${sy}/100)-(overlay_h/2):format=auto${gif ? ':shortest=1' : ''}${en}[vk]`); label = '[vk]';
     }
   }
+  let audioLabel = null;
+  if (musicPath) {   // mix the music under the speech; "duck" lowers it while someone talks (sidechain compression)
+    inputs.push('-stream_loop', '-1', '-i', musicPath); const mi = nIn++;
+    const vol = (Math.min(100, Math.max(0, Number.isFinite(+music.volume) ? +music.volume : 20)) / 100).toFixed(2);
+    steps.push(music.duck === false
+      ? `[${mi}:a]volume=${vol}[mu];[0:a][mu]amix=inputs=2:duration=first:dropout_transition=0,volume=2[aout]`
+      : `[0:a]asplit=2[va1][va2];[${mi}:a]volume=${vol}[mu];[mu][va2]sidechaincompress=threshold=0.03:ratio=12:attack=10:release=350[md];[va1][md]amix=inputs=2:duration=first:dropout_transition=0,volume=2[aout]`);
+    audioLabel = '[aout]';
+  }
   const fc = steps.join(';');
   await run('ffmpeg', ['-y', '-ss', String(s), '-to', String(e), ...inputs,
-    ...(fc ? ['-filter_complex', fc, '-map', label, '-map', '0:a?'] : []),
+    ...(fc ? ['-filter_complex', fc, '-map', label === '[0:v]' ? '0:v' : label, '-map', audioLabel || '0:a?'] : []),
     '-t', String(e - s), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', path.join(OUT, base + '.mp4')], OUT);
   const subFile = captions ? (wordByWord ? `/out/${base}.ass` : `/out/${base}.srt`) : null;
-  const rec = { key: base, time: new Date().toISOString(), url: `/out/${base}.mp4`, srt: subFile, source: id, mode: modeLabel, resolution,
+  const rec = { key: base, time: new Date().toISOString(), url: `/out/${base}.mp4`, srt: subFile, source: id, start: s, end: e, mode: modeLabel, resolution,
     preset: captions ? preset : null, word: wordByWord, logo: !!logoPath, sticker: !!stickerOn, focal: focalOn, motion: isBlur ? motion : null, ...(meta || {}) };
   const hist = readHist().filter(r => r.key !== base); hist.unshift(rec); writeHist(hist);
   return rec;
@@ -457,7 +479,7 @@ http.createServer(async (req, res) => {
   if (!local.test(req.headers.host || '') || (req.headers.origin && !local.test(req.headers.origin.replace(/^https?:\/\//, '')))) return json(res, 403, { error: 'forbidden' });
   try {
     const tok = cookieTok(req);
-    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js', '/studio/advanced.js', '/studio/polish.css'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
+    const publicGet = req.method === 'GET' && (u.pathname === '/' || ['/studio/account.js', '/studio/dashboard.js', '/studio/features.js', '/studio/advanced.js', '/studio/pro.js', '/studio/polish.css'].includes(u.pathname) || ['/assets/', '/brand/', '/fonts/'].some(x => u.pathname.startsWith(x)));
     if (u.pathname.startsWith('/auth/')) {
       const act = u.pathname.slice(6);
       if (act.startsWith('admin/') && ['users', 'stats', 'audit', 'plan', 'role', 'content', 'user-status', 'orders'].includes(act.slice(6))) { // peran dicek di pusat
@@ -483,7 +505,7 @@ http.createServer(async (req, res) => {
       if (!user) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
       res.setHeader('Cache-Control', 'no-store'); return serve(res, STUDIO, 'index.html');
     }
-    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js' || u.pathname === '/studio/advanced.js' || u.pathname === '/studio/polish.css')) return serve(res, STUDIO, path.basename(u.pathname));
+    if (req.method === 'GET' && (u.pathname === '/studio/account.js' || u.pathname === '/studio/dashboard.js' || u.pathname === '/studio/features.js' || u.pathname === '/studio/advanced.js' || u.pathname === '/studio/pro.js' || u.pathname === '/studio/polish.css')) return serve(res, STUDIO, path.basename(u.pathname));
     if (!publicGet && !user) return json(res, 401, { error: 'Belum login' });
     if (req.method === 'GET' && u.pathname === '/') { res.setHeader('Cache-Control', 'no-store'); return serve(res, fs.existsSync(path.join(__dirname, 'dist/index.html')) ? path.join(__dirname, 'dist') : __dirname, 'index.html'); }
     if (req.method === 'GET' && u.pathname.startsWith('/assets/')) return serve(res, path.join(__dirname, 'dist', 'assets'), u.pathname.slice(8));
@@ -625,6 +647,57 @@ http.createServer(async (req, res) => {
       try { await updater.install({ quit: () => global.klipQuit && global.klipQuit() }); return json(res, 200, updater.status()); }
       catch (e) { return json(res, 400, { error: e.message }); }
     }
+    // --- Musik latar: pustaka lokal (unggah, putar, hapus). Berkas diperiksa bisa didekode oleh ffmpeg. ---
+    if (req.method === 'GET' && u.pathname === '/music') return json(res, 200, { music: readMusic() });
+    if (req.method === 'GET' && u.pathname.startsWith('/music/')) return serve(res, MUSIC, u.pathname.slice(7), req);
+    if (req.method === 'POST' && u.pathname === '/music') {
+      const ext = (u.searchParams.get('ext') || '').toLowerCase(), name = String(u.searchParams.get('name') || 'Musik').replace(/[^\w .()\-]/g, '').trim().slice(0, 60) || 'Musik';
+      if (!/^(mp3|m4a|wav|aac|ogg|flac)$/.test(ext)) return json(res, 400, { error: 'Format musik: mp3, m4a, wav, aac, ogg, atau flac.' });
+      if (+req.headers['content-length'] > 60 * 1048576) return json(res, 413, { error: 'Berkas musik terlalu besar (maks 60 MB).' });
+      const id = newId(), f = path.join(MUSIC, id + '.' + ext); let n = 0;
+      await new Promise((ok, no) => { const w = fs.createWriteStream(f); req.on('data', c => { n += c.length; if (n > 60 * 1048576) req.destroy(); }); req.pipe(w).on('finish', ok).on('error', no); req.on('error', no); });
+      try { await run('ffmpeg', ['-v', 'error', '-t', '1', '-i', f, '-f', 'null', '-']); } catch { fs.rmSync(f, { force: true }); return json(res, 400, { error: 'Berkas bukan audio yang valid.' }); }
+      const all = readMusic(); all.unshift({ id, name, ext, size: n, at: Date.now() }); writeMusic(all.slice(0, 50)); return json(res, 200, { id, name, ext, url: `/music/${id}.${ext}` });
+    }
+    if (req.method === 'DELETE' && u.pathname.startsWith('/music/')) {
+      const id = u.pathname.slice(7), all = readMusic(), m = all.find(x => x.id === id);
+      if (m) { fs.rmSync(path.join(MUSIC, id + '.' + m.ext), { force: true }); writeMusic(all.filter(x => x.id !== id)); }
+      return json(res, 200, { ok: true });
+    }
+    // --- Gambar gelombang suara video sumber (latar timeline pemotong) dan transkrip berstempel waktu (klik untuk memotong) ---
+    if (req.method === 'GET' && /^\/wave\/[a-f0-9]{12}\.png$/.test(u.pathname)) {
+      const id = u.pathname.slice(6, 18), src = path.join(WORK, id + '.mp4'), out = path.join(WORK, id + '.wave.png');
+      if (!fs.existsSync(src)) return json(res, 404, { error: 'sumber tidak ada' });
+      if (!fs.existsSync(out)) await run('ffmpeg', ['-y', '-i', src, '-filter_complex', 'aformat=channel_layouts=mono,showwavespic=s=1600x72:colors=0x171916', '-frames:v', '1', out]);
+      res.setHeader('Cache-Control', 'private, max-age=3600'); return serve(res, WORK, id + '.wave.png');
+    }
+    if (req.method === 'POST' && u.pathname === '/transcript') {
+      const b = await body(req), id = b.id; if (!/^[a-f0-9]{12}$/.test(id || '')) return json(res, 400, { error: 'bad id' });
+      if (!fs.existsSync(path.join(WORK, id + '.mp4'))) return json(res, 404, { error: 'Sumber video sudah dihapus.' });
+      const lg = okLang(b.language) || WHISPER_LANGUAGE;
+      await jobCtx.run({ procs: new Set(), lang: lg }, () => fullTranscript(id));   // runs Whisper once, then the SRT is cached per language
+      const t = x => { const m = /(\d+):(\d+):(\d+)[,.](\d+)/.exec(x); return m ? +m[1] * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1000 : 0; };
+      const lines = fs.readFileSync(path.join(WORK, id + '.' + lg + '.srt'), 'utf8').trim().split(/\n\n+/).map(blk => { const [, tm, ...tx] = blk.split('\n'); const [a, z] = (tm || '').split(' --> '); return a && z ? { t0: t(a), t1: t(z), text: tx.join(' ').trim() } : null; }).filter(l => l && l.text);
+      return json(res, 200, { lines });
+    }
+    // --- Render ulang sebuah klip dengan gaya/rasio/resolusi lain dari sumber yang masih tersimpan (menagih 1 klip) ---
+    if (req.method === 'POST' && /^\/history\/[\w-]{1,80}\/rerender$/.test(u.pathname)) {
+      const key = u.pathname.split('/')[2], rec = readHist().find(r => r.key === key); if (!rec) return json(res, 404, { error: 'klip tidak ada' });
+      const p = await body(req), m = /^([a-f0-9]{12})_([\d.]+)-([\d.]+)_/.exec(rec.key), srcId = rec.source || (m && m[1]), s0 = rec.start ?? (m && +m[2]), e0 = rec.end ?? (m && +m[3]);
+      if (!srcId || !(e0 > s0)) return json(res, 422, { error: 'Data klip ini tidak cukup untuk dirender ulang.' });
+      if (!fs.existsSync(path.join(WORK, srcId + '.mp4'))) return json(res, 410, { error: 'Video sumber sudah dihapus (disimpan 7 hari). Klip ini tidak bisa dirender ulang.' });
+      const resolution = p.resolution || rec.resolution || '720p', preset = p.preset || rec.preset || 'karaoke', useSpec = p.aspect && RES[resolution] && RES[resolution][p.aspect];
+      if (!(resolution in RES) || !(preset in PRESETS) || !useSpec) return json(res, 400, { error: 'bad input' });
+      if (!resAllowed(user, resolution)) return json(res, 403, { error: `Resolusi ${resolution} tidak tersedia di plan ${user.limits.name}.` });
+      try { await charge(tok, 1); } catch (e2) { return json(res, e2.code, { error: e2.message }); }
+      try {
+        const content = await getContent(), keep = ['title', 'hook', 'description', 'hashtags', 'reason', 'grade', 'score', 'segments'].reduce((o, k) => (rec[k] !== undefined ? { ...o, [k]: rec[k] } : o), {});
+        const out = await jobCtx.run({ procs: new Set(), lang: okLang(p.language) }, () => makeClip({ id: srcId, start: s0, end: e0, mode: 'center-crop', aspect: p.aspect, fill: p.fill === 'fit' ? 'fit' : 'crop', bg: p.bg, resolution, captions: p.captions !== false, preset,
+          wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: true,
+          sticker: p.hook !== false ? hookSticker(content, p.hookText ?? rec.hook, p.hookStyle) : null, logo: p.logo, music: musicOf(p), meta: { ...keep, rerenderOf: rec.key } }));
+        return json(res, 200, out);
+      } catch (err) { await refund(tok, 1); throw err; }
+    }
     // --- Pengaturan aplikasi (di perangkat ini): cookies browser untuk yt-dlp; info mesin unduh ---
     if (req.method === 'GET' && u.pathname === '/settings') return json(res, 200, { ytCookies: readSettings().ytCookies || 'none', browsers: ytdlp.COOKIE_BROWSERS, ytdlp: { version: await ytdlp.version(), managed: ytdlp.bin() !== 'yt-dlp', jsRuntime: ytdlp.jsArgs().length ? 'node' : ytdlp.which('deno') ? 'deno' : null } });
     if (req.method === 'POST' && u.pathname === '/settings') {
@@ -658,7 +731,7 @@ http.createServer(async (req, res) => {
       try {
         const rec = await jobCtx.run({ procs: new Set(), lang: okLang(p.language) }, () => makeClip({ id: p.id, start: s, end: e, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: !!p.captions, preset,
           wordByWord: !!p.wordByWord, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor,
-          motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal }));
+          motion: p.motion !== false, logo: p.logo, sticker: p.sticker, focal: p.focal, music: musicOf(p) }));
         return json(res, 200, rec);
       } catch (err) { await refund(tok, 1); throw err; }
     }
@@ -677,6 +750,7 @@ http.createServer(async (req, res) => {
         clips: [], candidates: null, srcId: p.id || null, total: 0, done: 0, created: now, at: now };
       const priv = jobPriv[jobId] = { procs: new Set(), resume: null, clips: null, lang: okLang(p.language) };
       const clamp = (v, lo, hi, d) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d;
+      const music = musicOf(p);
       const logo = p.logo && /^[a-f0-9]{12}$/.test(p.logo.id || '') ? { id: p.logo.id, scale: clamp(p.logo.scale, 2, 100, 25), x: clamp(p.logo.x, 0, 100, 5), y: clamp(p.logo.y, 0, 100, 5), opacity: clamp(p.logo.opacity, 0, 1, 1) } : null;   // brand logo on every clip
       json(res, 200, { jobId });
       // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
@@ -695,15 +769,13 @@ http.createServer(async (req, res) => {
         for (let i = 0; i < clips.length; i++) { const c = clips[i]; chk();
           stage('render', `Render klip ${i + 1}/${clips.length}: ${c.title || 'Momen'}`);
           const focal = Number.isFinite(+c.face_x) && Number.isFinite(+c.face_y) ? { x: +c.face_x, y: +c.face_y } : null;
-          const hookTxt = String(c.hook || '').trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 24); // ringkas: ≤4 kata / 24 char
-          const hookStyles = content.hook_styles, hs = hookStyles[p.hookStyle] || Object.values(hookStyles)[0];
-          const sticker = (p.hook !== false && hookTxt) ? { text: hookTxt, y: 12, duration: 3, bg: hs.bg, color: hs.color, rounded: hs.rounded } : null;
+          const sticker = p.hook !== false ? hookSticker(content, c.hook, p.hookStyle) : null;
           let clipSrc = J.srcId, start = c.segs[0].start, end = c.segs[0].end;
           if (c.segs.length > 1) { clipSrc = await concatSegments(J.srcId, c.segs); start = 0; end = c.segs.reduce((n, s) => n + (s.end - s.start), 0); }
           await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
           const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
           const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker, logo,
+            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker, logo, music,
             meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
               reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
             .catch(async err => { await refund(tok, 1); throw err; });

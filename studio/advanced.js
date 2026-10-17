@@ -44,7 +44,9 @@
   /* ------------------------------------------------------------ phone-frame preview (logo + sticker + caption), geometry = server makeClip */
   const RATIO_CSS = { '9:16': '9/16', '3:4': '3/4', '1:1': '1/1', '16:9': '16/9', original: '16/9' };
   const SAMPLE_LOGO = '/brand/logo-white.png', SAMPLE_BG = '/brand/preview-podcast-host.webp';
-  function phoneHTML(note) { return `<div class=ovp><div class=ovf><img class=ovbg src="${SAMPLE_BG}" alt=""><img class=ovlogo alt=""><div class=ovstk></div><div class=ovcap>Ide bagus dimulai <span>di sini.</span></div></div><small class=ovnote>${esc(note)}</small></div>`; }
+  function phoneHTML(note) { return `<div class=ovp><div class=ovf><img class=ovbg src="${SAMPLE_BG}" alt=""><img class=ovlogo alt=""><div class=ovstk></div><div class=ovcap>Ide bagus dimulai <span>di sini.</span></div><div class=szl><i class=sz-t>Bar atas</i><i class=sz-b>Judul &amp; tombol</i><i class=sz-r>Aksi</i></div></div>
+    <label class=chip style="font-size:10px;padding:5px 8px" title="Tampilkan area yang tertutup antarmuka TikTok, Reels, dan Shorts"><input type=checkbox class=szToggle> Zona aman</label><small class=ovnote>${esc(note)}</small></div>`; }
+document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('szToggle')) e.target.closest('.ovp').querySelector('.ovf').classList.toggle('sz', e.target.checked); });
   // state: { ratio, logo:{on,src,scale,x,y,op}, sticker:{on,text,bg,color,round,size,x,y,src,img} | null }
   function paintPhone(host, st) {
     const f = $('.ovf', host); if (!f) return;

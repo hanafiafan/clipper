@@ -150,7 +150,8 @@
       <div class=trow><label>Mulai <input type=number class=na step=0.1 min=0></label><button type=button class="px mini" data-t=ma title="Mulai = posisi video sekarang">◂ posisi</button>
       <span class=tdur></span><button type=button class="px mini" data-t=mb title="Selesai = posisi video sekarang">posisi ▸</button>
       <label>Selesai <input type=number class=nb step=0.1 min=0></label><button type=button class="px mini" data-t=play>▶ Putar</button></div>`;
-    const ta = $('.ta', el), tb = $('.tb', el), na = $('.na', el), nb = $('.nb', el), sel = $('.tsel', el), dur = $('.tdur', el);
+    const ta = $('.ta', el), tb = $('.tb', el), na = $('.na', el), nb = $('.nb', el), sel = $('.tsel', el), dur = $('.tdur', el), trk = $('.trk', el);
+    if (video.dataset.wave) { trk.classList.add('hasWave'); trk.style.backgroundImage = `url(${video.dataset.wave})`; }   // audio waveform of the source, so cuts can follow speech
     let A = a, B = b, M = max, playing = false;
     const paint = () => {
       ta.max = tb.max = M; ta.value = A; tb.value = B; na.value = A.toFixed(1); nb.value = B.toFixed(1);
@@ -302,7 +303,7 @@
     try {
       for (const url of urls) {
         const { jobId } = await api('POST', '/auto', { url, aspect: cfg.aspect, fill, bg, resolution: cfg.resolution, count: cfg.count, preset: cfg.preset, wordByWord: cfg.wordByWord,
-          captionPosition: cfg.captionPosition, captionSize: cfg.captionSize, captionColor: cfg.captionColor, hook: cfg.hook, hookStyle: cfg.hookStyle, motion: true, provider, review: cfg.review, language: cfg.language,
+          captionPosition: cfg.captionPosition, captionSize: cfg.captionSize, captionColor: cfg.captionColor, hook: cfg.hook, hookStyle: cfg.hookStyle, motion: true, provider, review: cfg.review, language: cfg.language, musicId: cfg.musicId, musicVol: cfg.musicVol, musicDuck: cfg.musicDuck,
           logo: cfg.logoOn && cfg.logoId ? { id: cfg.logoId, scale: cfg.logoScale, x: cfg.logoX, y: cfg.logoY, opacity: cfg.logoOp } : undefined });
         jobs.set(jobId, { id: jobId, status: 'queued', stage: 'queue', step: 'Menunggu antrean…', label: url, clips: [], created: Date.now(), at: Date.now() }); n++;
       }
@@ -378,6 +379,7 @@
     <time style="margin-top:8px">${new Date(r.time).toLocaleString('id-ID')}</time>
     <div class=acts><a href="${esc(r.url)}" download><svg class=ic14><use href="#i-download"/></svg> Unduh</a>${r.srt ? `<a href="${esc(r.srt)}" download>.srt</a>` : ''}
     ${cap ? `<button type=button class="px ghost cap" data-act=copy data-cap="${esc(cap)}"><svg class=ic14><use href="#i-copy"/></svg> Salin caption</button>` : ''}
+    <button type=button class="px ghost cap" data-act=rerender title="Render lagi dengan rasio, gaya, atau musik lain">Render ulang</button>
     <a href="#" class=danger data-act=del>Hapus</a></div></div></div>`;
   }
   window.autoCard = r => clipCard(r);
@@ -386,6 +388,7 @@
     const a = e.target.closest('[data-act]'); if (!a) return; const card = a.closest('.hcard'), key = card?.dataset.key, act = a.dataset.act;
     if (act === 'copy') { try { await navigator.clipboard.writeText(a.dataset.cap); toast('Caption tersalin.', 'ok'); } catch { toast('Gagal menyalin.', 'err'); } }
     else if (act === 'fav') { const on = a.getAttribute('aria-pressed') !== 'true'; try { await api('PATCH', '/history/' + encodeURIComponent(key), { fav: on }); patchFav(key, on); } catch (er) { toast(er.message, 'err'); } }
+    else if (act === 'rerender') { if (window.__klipPro) window.__klipPro.rerender(key); }
     else if (act === 'del') { e.preventDefault(); if (!confirm('Hapus klip ini?')) return; await fetch('/history/' + encodeURIComponent(key), { method: 'DELETE' }); removeFromJobs([key]); loadHist(); paintResults(); }
     else if (act === 'pick') { H.sel[a.checked ? 'add' : 'delete'](key); card.classList.toggle('picked', a.checked); paintSelBar(); }
     else if (act === 'zip') downloadZip((jobs.get(a.dataset.id)?.clips || []).map(c => c.key));
@@ -425,6 +428,7 @@
         segs.append(t.el); (card._t = card._t || []).push(t);
       });
     });
+    host.onclick = e => { const b = e.target.closest('[data-hook]'); if (b) { $('.rhook', b.closest('.rc')).value = b.dataset.hook; } };
     host.onchange = e => { if (e.target.classList.contains('rinc')) { e.target.closest('.rc').classList.toggle('off', !e.target.checked); sumUp(); } };
     $('#rAll').onclick = () => { $$('.rinc', host).forEach(c => { c.checked = true; c.closest('.rc').classList.remove('off'); }); sumUp(); };
     $('#rNone').onclick = () => { $$('.rinc', host).forEach(c => { c.checked = false; c.closest('.rc').classList.add('off'); }); sumUp(); };
@@ -444,10 +448,11 @@
     sumUp(); host.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function reviewCard(j, c, i) {
-    return `<article class=rc data-i="${i}"><div><video src="/src/${j.srcId}.mp4#t=${c.segs[0].start}" controls preload=metadata playsinline></video></div>
+    return `<article class=rc data-i="${i}"><div><video src="/src/${j.srcId}.mp4#t=${c.segs[0].start}" data-wave="/wave/${j.srcId}.png" controls preload=metadata playsinline></video></div>
       <div class=rcb><div class=rch><span class=rn>${String(i + 1).padStart(2, '0')}</span><label class=chip><input type=checkbox class=rinc checked> Render</label>
         ${c.grade ? `<span class="grade g${esc(c.grade)}">${esc(c.grade)}</span>` : ''}${c.score != null ? `<span class=mono style="font-size:12px">${esc(c.score)}/100</span>` : ''}</div>
       <div class=two><div><label class=fld>Judul</label><input class=rtitle value="${esc(c.title || '')}" maxlength=120></div><div><label class=fld>Hook (maks 4 kata)</label><input class=rhook value="${esc(c.hook || '')}" maxlength=24></div></div>
+      ${Array.isArray(c.hooks) && c.hooks.length ? `<div class=hookAlts><span class=plab>Alternatif AI</span>${c.hooks.slice(0, 3).map(h => `<button type=button class="px mini" data-hook="${esc(String(h).slice(0, 24))}">${esc(String(h).slice(0, 24))}</button>`).join('')}</div>` : ''}
       <div class=rsegs></div>${c.reason ? `<div class=reason>${esc(c.reason)}</div>` : ''}</div></article>`;
   }
 
@@ -461,7 +466,7 @@
       <div class=gchips id=hg><button type=button class="px on" data-g=all>Semua</button><button type=button class=px data-g=A>A</button><button type=button class=px data-g=B>B</button><button type=button class=px data-g=C>C</button><button type=button class=px data-g=D>D</button></div>
       <label class=chip><input type=checkbox id=hfav> ★ Favorit</label>
       <select id=hsort aria-label="Urutkan"><option value=new>Terbaru</option><option value=old>Terlama</option><option value=score>Skor tertinggi</option></select>
-      <button type=button class=px id=hsel>Pilih</button></div><div class=hsum id=hsum></div>
+      <button type=button class=px id=hsel>Pilih</button><button type=button class=px id=hcsv title="Unduh daftar klip sebagai CSV">Ekspor CSV</button></div><div class=hsum id=hsum></div>
       <div class=hselbar id=hselbar hidden><span id=hselc></span><button type=button class=px id=hselall>Pilih semua</button><button type=button class="px primary" id=hzip>Unduh ZIP</button><button type=button class="px" id=hdelsel>Hapus</button><button type=button class=px id=hdone>Selesai</button></div>`);
     hist.addEventListener('click', onCardClick);
     let debounce; $('#hq').addEventListener('input', e => { clearTimeout(debounce); debounce = setTimeout(() => { H.q = e.target.value.trim().toLowerCase(); paintHist(); }, 150); });
@@ -469,6 +474,12 @@
     $('#hfav').addEventListener('change', e => { H.fav = e.target.checked; paintHist(); });
     $('#hsort').addEventListener('change', e => { H.sort = e.target.value; paintHist(); });
     const mode = on => { H.selecting = on; if (!on) H.sel.clear(); $('#hsel').textContent = on ? 'Selesai' : 'Pilih'; paintHist(); };
+    $('#hcsv').addEventListener('click', () => {
+      const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', rows = [['Judul', 'Grade', 'Skor', 'Rasio/mode', 'Resolusi', 'Gaya caption', 'Favorit', 'Tanggal', 'Deskripsi', 'Hashtag', 'Alasan']];
+      visible().forEach(r => rows.push([r.title || '', r.grade || '', r.score ?? '', r.mode, r.resolution, r.preset || '', r.fav ? 'ya' : '', r.time, r.description || '', (r.hashtags || []).join(' '), r.reason || '']));
+      const blob = new Blob(['\uFEFF' + rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }), a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'hellens-riwayat-' + new Date().toISOString().slice(0, 10) + '.csv' });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast(rows.length - 1 + ' klip diekspor.');
+    });
     $('#hsel').addEventListener('click', () => mode(!H.selecting)); $('#hdone').addEventListener('click', () => mode(false));
     $('#hselall').addEventListener('click', () => { visible().forEach(r => H.sel.add(r.key)); paintHist(); });
     $('#hzip').addEventListener('click', () => downloadZip([...H.sel]));
@@ -491,7 +502,7 @@
       : `<div class=empty><svg class=xh><use href="#i-cross"/></svg>${H.all.length ? 'Tidak ada klip yang cocok dengan filter' : 'Belum ada klip'}</div>`;
     paintSelBar();
   }
-  window.loadHist = async function () { try { H.all = (await api('GET', '/history')).history || []; } catch { return; } paintHist(); };
+  window.loadHist = async function () { try { H.all = (await api('GET', '/history')).history || []; window.__klipHistory = H.all; } catch { return; } paintHist(); };
 
   /* ---------------------------------------------------------------- Editor: trim timeline for the manual cut */
   function upgradeEditor() {

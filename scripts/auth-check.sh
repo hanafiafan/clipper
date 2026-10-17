@@ -15,6 +15,7 @@ chk "me setelah login"             "$(code -b $CJ $U/auth/me)" 200
 chk "antrean /auto butuh login"      "$(code $U/auto)" 401
 chk "riwayat pesanan butuh login"  "$(code $U/auth/billing/orders)" 401
 chk "checkout butuh login"         "$(code -X POST $U/auth/billing/checkout)" 401
+chk "musik butuh login"           "$(code $U/music)" 401
 chk "pengaturan butuh login"      "$(code $U/settings)" 401
 chk "cek update butuh login"       "$(code $U/update)" 401
 chk "pasang update butuh login"    "$(code -X POST $U/update/install)" 401
@@ -98,6 +99,7 @@ chk "dashboard.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code
 chk "features.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/features.js | cut -d';' -f1)" "200 text/javascript"
 chk "polish.css publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/polish.css | cut -d';' -f1)" "200 text/css"
 chk "advanced.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/advanced.js | cut -d';' -f1)" "200 text/javascript"
+chk "pro.js publik"           "$(curl -s -m 5 -o /dev/null -w '%{http_code} %{content_type}' $U/studio/pro.js | cut -d';' -f1)" "200 text/javascript"
 chk "studio dengan login"           "$(code -b $OJ $U/studio)" 200
 chk "studio memuat account.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/account.js')" 1
 chk "studio memuat features.js"      "$(curl -s -b $OJ $U/studio | grep -c 'studio/features.js')" 1
