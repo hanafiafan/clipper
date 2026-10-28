@@ -193,7 +193,7 @@
 
   const captureCfg = () => {
     const tpl = $('#aPreset .opt.sel'), fit = getSel('aFill') === 'fit', color = getSel('aBg') === 'color';
-    return { aspect: getSel('aAspect'), fill: getSel('aFill'), bg: fit ? (color ? $('#aBgColor').value : 'blur') : undefined, resolution: getSel('aRes'), count: +getSel('aCount'),
+    return { aspect: getSel('aAspect'), fill: getSel('aFill'), bg: fit ? (color ? $('#aBgColor').value : 'blur') : undefined, resolution: getSel('aRes'),
       preset: getSel('aPreset'), template: tpl ? tpl.dataset.name : undefined, wordByWord: $('#aWord').checked, captionPosition: getSel('aCapPos'), captionSize: getSel('aCapSize'),
       captionColor: getSel('aCapColor'), hook: $('#aHook').checked, hookStyle: getSel('aHookStyle'), review: $('#aReview').checked, ...(window.__klipAdv ? window.__klipAdv.cfg() : {}) };
   };
@@ -206,7 +206,6 @@
     c.fill && pickOpt('aFill', o => o.dataset.val === c.fill);
     if (c.fill === 'fit' && c.bg) { if (c.bg === 'blur') pickOpt('aBg', o => o.dataset.val === 'blur'); else if (/^#[0-9a-f]{6}$/i.test(c.bg)) { pickOpt('aBg', o => o.dataset.val === 'color'); $('#aBgColor').value = c.bg; } }
     c.resolution && pickOpt('aRes', o => o.dataset.val === c.resolution);
-    c.count && pickOpt('aCount', o => o.dataset.val === String(c.count));
     if (c.template || c.preset) pickOpt('aPreset', o => c.template ? o.dataset.name === c.template : o.dataset.val === c.preset) || pickOpt('aPreset', o => o.dataset.val === c.preset);
     c.captionPosition && pickOpt('aCapPos', o => o.dataset.val === c.captionPosition);
     c.captionSize && pickOpt('aCapSize', o => o.dataset.val === c.captionSize);
@@ -302,7 +301,7 @@
     let n = 0;
     try {
       for (const url of urls) {
-        const { jobId } = await api('POST', '/auto', { url, aspect: cfg.aspect, fill, bg, resolution: cfg.resolution, count: cfg.count, preset: cfg.preset, wordByWord: cfg.wordByWord,
+        const { jobId } = await api('POST', '/auto', { url, aspect: cfg.aspect, fill, bg, resolution: cfg.resolution, preset: cfg.preset, wordByWord: cfg.wordByWord,
           captionPosition: cfg.captionPosition, captionSize: cfg.captionSize, captionColor: cfg.captionColor, hook: cfg.hook, hookStyle: cfg.hookStyle, motion: true, provider, review: cfg.review, language: cfg.language, musicId: cfg.musicId, musicVol: cfg.musicVol, musicDuck: cfg.musicDuck,
           logo: cfg.logoOn && cfg.logoId ? { id: cfg.logoId, scale: cfg.logoScale, x: cfg.logoX, y: cfg.logoY, opacity: cfg.logoOp } : undefined });
         jobs.set(jobId, { id: jobId, status: 'queued', stage: 'queue', step: 'Menunggu antrean…', label: url, clips: [], created: Date.now(), at: Date.now() }); n++;

@@ -140,6 +140,14 @@ async function transcribe(src, s, e, name) {
   fs.unlinkSync(wav);
   return fs.statSync(path.join(OUT, name + '.srt')).size > 0;
 }
+// Koreksi salah dengar/typo Whisper lewat LLM. Jumlah kata harus tetap sama agar timing valid; kalau tidak, pakai aslinya.
+async function fixWords(words, provider) {
+  try {
+    const txt = await askLLM(`Ini kata-kata subtitle hasil speech-to-text (mungkin ada salah dengar/typo, nama & istilah salah eja). Perbaiki ejaan dan salah dengar berdasarkan konteks kalimat, tanpa menambah, menghapus, atau menggabung kata. Balas HANYA JSON {"words":[...]} berisi TEPAT ${words.length} string, urutan sama.\n${JSON.stringify(words.map(w => w.text))}`, provider);
+    const out = JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1));
+    return out.length === words.length && out.every(x => typeof x === 'string') ? words.map((w, i) => ({ ...w, text: out[i].trim() || w.text })) : words;
+  } catch { return words; }
+}
 // Per-word timing via whisper (-ml 1 -sow): parse the one-word-per-cue SRT. Returns [{t0,t1,text}] relative to clip.
 async function transcribeWords(src, s, e, name) {
   const wav = path.join(WORK, name + '.w.wav'), out = path.join(OUT, name + '.w');
@@ -284,7 +292,7 @@ const MUSIC_IDX = path.join(MUSIC, 'index.json');
 const readMusic = () => { try { const v = JSON.parse(fs.readFileSync(MUSIC_IDX, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
 const writeMusic = v => fs.writeFileSync(MUSIC_IDX, JSON.stringify(v, null, 2));
 const PRESETS_FILE = path.join(DATA, 'presets.json');
-const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'count', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review', 'logoOn', 'logoId', 'logoScale', 'logoX', 'logoY', 'logoOp', 'language', 'musicId', 'musicVol', 'musicDuck'];
+const PRESET_KEYS = ['aspect', 'fill', 'bg', 'resolution', 'preset', 'template', 'wordByWord', 'captionPosition', 'captionSize', 'captionColor', 'hook', 'hookStyle', 'review', 'logoOn', 'logoId', 'logoScale', 'logoX', 'logoY', 'logoOp', 'language', 'musicId', 'musicVol', 'musicDuck'];
 const readPresets = () => { try { const v = JSON.parse(fs.readFileSync(PRESETS_FILE, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } };
 const writePresets = v => fs.writeFileSync(PRESETS_FILE, JSON.stringify(v, null, 2));
 const MIME = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
@@ -329,7 +337,7 @@ function cleanup() {
 }
 cleanup(); setInterval(cleanup, 36e5).unref();
 const scoreGrade = s => s == null ? null : s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 55 ? 'C' : 'D';
-const AUTO_PROMPT = t => `Kamu editor short-form viral (gaya Opus Clip / Klipper). Dari transkrip ber-timestamp (detik) di bawah, pilih 3-6 momen paling berpotensi viral sebagai klip mandiri (hook kuat di 3 detik awal, utuh, bisa dipahami tanpa konteks), masing-masing 15-60 detik, mulai & berakhir di batas kalimat.
+const AUTO_PROMPT = t => `Kamu editor short-form viral (gaya Opus Clip / Klipper). Dari transkrip ber-timestamp (detik) di bawah, pilih SEBANYAK MUNGKIN momen yang layak jadi klip viral (jumlah mengikuti panjang & kepadatan video, kira-kira 1 klip per 1-2 menit; jangan dibatasi angka tetap, jangan saling tumpang tindih, skip momen yang lemah) sebagai klip mandiri (hook kuat di 3 detik awal, utuh, bisa dipahami tanpa konteks), masing-masing 15-60 detik, mulai & berakhir di batas kalimat.
 Untuk tiap klip hasilkan paket siap-posting:
 - "timelines": array {start,end} dalam DETIK. Boleh beberapa potongan non-berurutan yang digabung jadi satu klip (buang bagian membosankan di tengah). Minimal satu.
 - "title": judul menarik; "hook": teks badge 2-4 kata untuk ditempel di video; "hooks": 2 alternatif hook lain (2-4 kata, gaya berbeda: rasa penasaran, angka/fakta, pertanyaan); "description": caption 1-2 kalimat siap posting.
@@ -357,7 +365,7 @@ function hookSticker(content, text, styleId) {
 }
 // Render one clip (shared by /clip and /auto). p has resolved params; returns the history record.
 async function makeClip(p) {
-  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, captionPosition, captionSize, captionColor, motion, logo, sticker, focal, meta, aspect, fill, bg, music } = p;
+  const { id, start: s, end: e, mode, resolution, captions, preset, wordByWord, captionPosition, captionSize, captionColor, motion, logo, sticker, focal, meta, aspect, fill, bg, music, provider } = p;
   const useSpec = aspect && RES[resolution][aspect];          // flexible aspect+fill+bg path
   const arKey = useSpec ? aspect : (FORMATS[mode][0] || '9:16');
   const isColorBg = useSpec && fill === 'fit' && typeof bg === 'string' && /^#?[0-9a-fA-F]{6}$/.test(bg);
@@ -383,7 +391,8 @@ async function makeClip(p) {
                      : videoFilter(mode, resolution, focalOn ? { x: +focal.x, y: +focal.y } : null, motion);
   if (vf) { steps.push(vf.startsWith('[0:v]') ? vf + '[vb]' : `[0:v]${vf}[vb]`); label = '[vb]'; }
   if (captions && wordByWord) {
-    const words = await transcribeWords(src, s, e, base);
+    let words = await transcribeWords(src, s, e, base);
+    if (provider && words.length) words = await fixWords(words, provider);
     if (words.length) { fs.writeFileSync(path.join(OUT, base + '.ass'), buildKaraokeAss(words, preset, w, h, { position: captionPosition, size: captionSize, color: captionColor }));
       steps.push(`${label}subtitles=${base}.ass:fontsdir='${ffPath(FONTSDIR)}'[vc]`); label = '[vc]'; }
   } else if (captions && await transcribe(src, s, e, base)) {
@@ -753,7 +762,7 @@ http.createServer(async (req, res) => {
       const music = musicOf(p);
       const logo = p.logo && /^[a-f0-9]{12}$/.test(p.logo.id || '') ? { id: p.logo.id, scale: clamp(p.logo.scale, 2, 100, 25), x: clamp(p.logo.x, 0, 100, 5), y: clamp(p.logo.y, 0, 100, 5), opacity: clamp(p.logo.opacity, 0, 1, 1) } : null;   // brand logo on every clip
       json(res, 200, { jobId });
-      // Jumlah klip ditentukan AI berdasarkan kepadatan momen; 6 hanya batas pengaman.
+      // Jumlah klip ditentukan AI berdasarkan panjang/kepadatan video; hanya dibatasi plan (clipsPerJob) dan kuota bulanan.
       const count = user.limits.clipsPerJob;
       const chk = () => { if (J.cancelled) throw new Error('dibatalkan'); };
       const stage = (s, text) => { J.stage = s; J.step = text; };
@@ -775,7 +784,7 @@ http.createServer(async (req, res) => {
           await charge(tok, 1); // kuota habis di tengah job -> berhenti, klip yang sudah jadi tetap tersimpan
           const hashtags = Array.isArray(c.hashtags) ? c.hashtags.map(h => String(h).trim()).filter(Boolean).slice(0, 12) : [];
           const rec = await makeClip({ id: clipSrc, start, end, mode, aspect: useSpec ? p.aspect : null, fill: p.fill, bg: p.bg, resolution, captions: true, preset,
-            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker, logo, music,
+            wordByWord: p.wordByWord !== false, captionPosition: p.captionPosition, captionSize: p.captionSize, captionColor: p.captionColor || content.caption_presets?.[preset]?.hl, motion: p.motion !== false, focal, sticker, logo, music, provider: p.provider,
             meta: { title: c.title || 'Momen', hook: c.hook || '', description: c.description || '', hashtags,
               reason: c.reason || '', grade: c.grade || scoreGrade(c.score), score: c.score ?? null, segments: c.segs.length } })
             .catch(async err => { await refund(tok, 1); throw err; });

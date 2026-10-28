@@ -420,14 +420,6 @@ video.preview[hidden]{display:none}
                 <div class=opt data-val=4k><div class=lbl>4K</div><div class=sub2>Ultra</div></div>
               </div>
             </div>
-            <div class=field><div class=flabel>04 · Jumlah klip</div>
-              <div class=opts id=aCount>
-                <div class=opt data-val=3><div class=lbl>3</div></div>
-                <div class=opt data-val=4><div class=lbl>4</div></div>
-                <div class=opt data-val=5><div class=lbl>5</div></div>
-                <div class="opt sel" data-val=6><div class=lbl>6</div></div>
-              </div>
-            </div>
             <div class=cfgGroup><i>B</i> Caption &amp; hook</div>
             <div class="field wide"><div class=flabel>05 · Gaya caption</div>
               <div class=templateBrowser>
@@ -772,7 +764,7 @@ $('templateSearch')?.addEventListener('input',filterTemplates);
 function updateSpec(){const el=$('aSpec');if(!el)return;
   const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?'warna':'blur'):'';
   const rows=[['Rasio',getSel('aAspect')],['Isi frame',fill+(bg?' · '+bg:'')],['Resolusi',getSel('aRes')],
-   ['Jumlah klip','≤ '+getSel('aCount')],['Caption',getSel('aPreset')+($('aWord')&&$('aWord').checked?' · kata':'')],
+   ['Jumlah klip','otomatis'],['Caption',getSel('aPreset')+($('aWord')&&$('aWord').checked?' · kata':'')],
    ['Posisi / ukuran',getSel('aCapPos')+' · '+getSel('aCapSize')],['Highlight',getSel('aCapColor')],['Hook',$('aHook')&&$('aHook').checked?getSel('aHookStyle')+' · 3 dtk':'off'],['Model AI',getSel('aProv')||'—']];
   el.innerHTML=rows.map(([k,v])=>`<div class=sp><span>${k}</span><b class="${k==='Model AI'&&!v?'':'on'}">${(v||'—').toString().toUpperCase()}</b></div>`).join('')}
 // show background options only when Fit is chosen (Auto 'a*' and Editor 'm*')
@@ -826,7 +818,7 @@ async function startAuto(){const url=$('aUrl').value.trim();if(!url)return;const
  if(!provider)return $('aStatus').innerHTML='Belum ada API key. <a href="#" onclick="showView(\'settings\');return false">Tambah di Pengaturan →</a>';
  b.disabled=true;b.textContent='Memproses…';$('aResults').innerHTML='';$('aProg').style.display='block';$('aBar').style.width='8%';
  const fill=getSel('aFill'),bg=fill==='fit'?(getSel('aBg')==='color'?$('aBgColor').value:'blur'):undefined;
- try{const{jobId}=await post('/auto',{url,aspect:getSel('aAspect'),fill,bg,resolution:getSel('aRes'),count:+getSel('aCount'),preset:getSel('aPreset'),wordByWord:$('aWord').checked,captionPosition:getSel('aCapPos'),captionSize:getSel('aCapSize'),captionColor:getSel('aCapColor'),hook:$('aHook').checked,hookStyle:getSel('aHookStyle'),motion:true,provider});
+ try{const{jobId}=await post('/auto',{url,aspect:getSel('aAspect'),fill,bg,resolution:getSel('aRes'),preset:getSel('aPreset'),wordByWord:$('aWord').checked,captionPosition:getSel('aCapPos'),captionSize:getSel('aCapSize'),captionColor:getSel('aCapColor'),hook:$('aHook').checked,hookStyle:getSel('aHookStyle'),motion:true,provider});
   await poll(jobId)}catch(e){$('aStatus').textContent='Gagal: '+e.message}finally{b.disabled=false;b.innerHTML='<svg class=ic14><use href=\'#i-auto\'/></svg> Buat shorts'}}
 async function poll(jobId){while(true){const j=await (await fetch('/auto/'+jobId)).json();
   $('aStatus').textContent=j.step||'';

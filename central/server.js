@@ -28,9 +28,9 @@ const hashPw = pw => { const salt = crypto.randomBytes(16); return salt.toString
 const checkPw = (pw, stored) => { const [s, h] = stored.split(':'); return crypto.timingSafeEqual(crypto.scryptSync(pw, Buffer.from(s, 'hex'), 64), Buffer.from(h, 'hex')); };
 // Definisi plan di kode (bukan DB): harga/limit berubah lewat deploy. null = tanpa batas.
 const PLANS = {
-  free:       { name: 'Free',       clipsPerMonth: 10,   maxResolution: '720p',  clipsPerJob: 3 },
-  pro:        { name: 'Pro',        clipsPerMonth: 100,  maxResolution: '1080p', clipsPerJob: 6, price: { month: 49000, year: 490000 } },        // IDR; year = 10 months
-  enterprise: { name: 'Enterprise', clipsPerMonth: null, maxResolution: '4k',    clipsPerJob: 6, price: { month: 499000, year: 4990000 } },
+  free:       { name: 'Free',       clipsPerMonth: 10,   maxResolution: '720p',  clipsPerJob: 30 },
+  pro:        { name: 'Pro',        clipsPerMonth: 100,  maxResolution: '1080p', clipsPerJob: 30, price: { month: 49000, year: 490000 } },        // IDR; year = 10 months
+  enterprise: { name: 'Enterprise', clipsPerMonth: null, maxResolution: '4k',    clipsPerJob: 30, price: { month: 499000, year: 4990000 } },
 };
 const RANK = { free: 0, pro: 1, enterprise: 2 }, PERIOD_DAYS = { month: 30, year: 365 }, PERIOD_LABEL = { month: 'bulanan', year: 'tahunan' };
 // A paid plan that ran past plan_until drops back to free the next time the account is read.
