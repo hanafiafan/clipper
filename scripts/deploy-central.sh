@@ -11,6 +11,7 @@ HOST="${HOST:-vps-run}"; DIR=/opt/clipper-central; DATA=/var/lib/clipper-central
 echo "== upload"
 ssh "$HOST" "mkdir -p $DIR/app $DATA/backups && chown -R 1000:1000 $DATA"
 COPYFILE_DISABLE=1 tar --no-xattrs -C central -czf - server.js doku.js cli.js backup.js | ssh "$HOST" "tar -xzf - -C $DIR/app"
+ssh "$HOST" "chmod -R a+rX $DIR/app"   # tar keeps the Mac file modes (600); the container runs as uid 1000
 scp -q deploy/central/docker-compose.yml "$HOST:$DIR/"
 
 echo "== (re)start container"
